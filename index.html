@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>いぼ次元ラッシュ v0.30</title>
+  <title>いぼ次元ラッシュ v0.31</title>
   <style>
     body {
       margin: 0;
@@ -76,7 +76,7 @@
 <body>
 <canvas id="game" width="800" height="480"></canvas>
 <div id="info">
-  いぼ次元ラッシュ v0.30
+  いぼ次元ラッシュ v0.31
   ← →：移動　／　Space：ジャンプ　／　I：いぼミサイル　／　Enter：スタート／次へ
 </div>
 
@@ -119,6 +119,133 @@ const ENEMY_JUMP_POWER  = -13; // キレジッチ
 const BEAM_BASE_SPEED    = 9;     // px/フレーム
 const BEAM_BASE_LIFE     = 1500;  // ms
 const BEAM_BASE_COOLDOWN = 900;   // ms
+
+
+// ===== SE / Web Audio =====
+// 外部音声ファイルなし。レトロゲーム風SEをブラウザ内で合成する。
+let audioCtx = null;
+let masterGain = null;
+
+function ensureAudio() {
+  if (!audioCtx) {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return null;
+    audioCtx = new AudioContextClass();
+    masterGain = audioCtx.createGain();
+    masterGain.gain.value = 0.16;
+    masterGain.connect(audioCtx.destination);
+  }
+  if (audioCtx.state === "suspended") audioCtx.resume();
+  return audioCtx;
+}
+
+function playTone({
+  type = "square",
+  freq = 440,
+  endFreq = null,
+  duration = 0.08,
+  volume = 0.25,
+  delay = 0
+} = {}) {
+  const ac = ensureAudio();
+  if (!ac || !masterGain) return;
+
+  const t0 = ac.currentTime + delay;
+  const t1 = t0 + duration;
+  const osc = ac.createOscillator();
+  const gain = ac.createGain();
+
+  osc.type = type;
+  osc.frequency.setValueAtTime(Math.max(30, freq), t0);
+  if (endFreq !== null) {
+    osc.frequency.exponentialRampToValueAtTime(Math.max(30, endFreq), t1);
+  }
+
+  gain.gain.setValueAtTime(0.0001, t0);
+  gain.gain.exponentialRampToValueAtTime(Math.max(0.0001, volume), t0 + Math.min(0.012, duration * 0.25));
+  gain.gain.exponentialRampToValueAtTime(0.0001, t1);
+
+  osc.connect(gain);
+  gain.connect(masterGain);
+  osc.start(t0);
+  osc.stop(t1 + 0.02);
+}
+
+function playNoise(duration = 0.08, volume = 0.18, delay = 0) {
+  const ac = ensureAudio();
+  if (!ac || !masterGain) return;
+
+  const sampleCount = Math.max(1, Math.floor(ac.sampleRate * duration));
+  const buffer = ac.createBuffer(1, sampleCount, ac.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < sampleCount; i++) {
+    const decay = 1 - i / sampleCount;
+    data[i] = (Math.random() * 2 - 1) * decay;
+  }
+
+  const src = ac.createBufferSource();
+  const filter = ac.createBiquadFilter();
+  const gain = ac.createGain();
+  const t0 = ac.currentTime + delay;
+
+  filter.type = "bandpass";
+  filter.frequency.value = 950;
+  filter.Q.value = 0.7;
+  gain.gain.setValueAtTime(volume, t0);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
+
+  src.buffer = buffer;
+  src.connect(filter);
+  filter.connect(gain);
+  gain.connect(masterGain);
+  src.start(t0);
+}
+
+function sfxStart() {
+  playTone({ type:"square", freq:392, endFreq:523, duration:0.07, volume:0.20 });
+  playTone({ type:"square", freq:523, endFreq:659, duration:0.09, volume:0.18, delay:0.07 });
+}
+
+function sfxJump() {
+  playTone({ type:"square", freq:300, endFreq:620, duration:0.12, volume:0.20 });
+}
+
+function sfxMissile() {
+  playTone({ type:"square", freq:760, endFreq:280, duration:0.10, volume:0.15 });
+  playTone({ type:"triangle", freq:980, endFreq:520, duration:0.06, volume:0.08, delay:0.015 });
+}
+
+function sfxBeam() {
+  playTone({ type:"sawtooth", freq:220, endFreq:520, duration:0.13, volume:0.10 });
+}
+
+function sfxEnemyHit() {
+  playNoise(0.07, 0.16);
+  playTone({ type:"square", freq:190, endFreq:110, duration:0.10, volume:0.18 });
+}
+
+function sfxPlayerHit() {
+  playNoise(0.10, 0.20);
+  playTone({ type:"sawtooth", freq:150, endFreq:70, duration:0.16, volume:0.16 });
+}
+
+function sfxStageClear() {
+  [523, 659, 784, 1047].forEach((f, i) => {
+    playTone({ type:"square", freq:f, duration:0.11, volume:0.16, delay:i * 0.09 });
+  });
+}
+
+function sfxVictory() {
+  [523, 659, 784, 1047, 1319].forEach((f, i) => {
+    playTone({ type:i < 4 ? "square" : "triangle", freq:f, duration:i === 4 ? 0.28 : 0.10, volume:0.17, delay:i * 0.09 });
+  });
+}
+
+function sfxDefeat() {
+  [330, 277, 220, 165].forEach((f, i) => {
+    playTone({ type:"square", freq:f, duration:0.15, volume:0.14, delay:i * 0.12 });
+  });
+}
 
 // ===== スプライトアトラス =====
 // 512x256 / 1タイル64x128 / 8列x2行
@@ -213,8 +340,10 @@ let comboTimer = 0;
 // ===== 入力 =====
 function attemptJump() {
   if (state === STATE_PLAYING && player.onGround) {
+    ensureAudio();
     player.vy = PLAYER_JUMP_POWER;
     player.onGround = false;
+    sfxJump();
   }
 }
 
@@ -226,9 +355,11 @@ function attemptMissile() {
 
 function handleEnterAction() {
   if (state === STATE_TITLE) {
+    ensureAudio();
     stage = 1;
     resetGame();
     state = STATE_PLAYING;
+    sfxStart();
     return;
   }
 
@@ -239,10 +370,12 @@ function handleEnterAction() {
   }
 
   if (state === STATE_STAGE_CLEAR) {
+    ensureAudio();
     stage++;
     if (stage > MAX_STAGE) stage = MAX_STAGE;
     resetGame();
     state = STATE_PLAYING;
+    sfxStart();
   }
 }
 
@@ -383,15 +516,18 @@ function update(dt) {
   if (player.hp <= 0) {
     state = STATE_GAMEOVER;
     resultText = "イボジッチ敗北…";
+    sfxDefeat();
   } else if (enemy.hp <= 0) {
     if (stage < MAX_STAGE) {
       // ステージクリア → 次ステージへ
       state = STATE_STAGE_CLEAR;
       stageClearText = getStageClearMessage(stage);
+      sfxStageClear();
     } else {
       // 最終ステージ撃破 → 完全勝利
       state = STATE_GAMEOVER;
       resultText = "勝利！いぼ次元制圧！";
+      sfxVictory();
     }
   }
 }
@@ -499,7 +635,9 @@ function maybeEnemyDodgeJump() {
 
 // ===== イボミサイル =====
 function shootMissile() {
+  ensureAudio();
   player.missileCooldown = 350;
+  sfxMissile();
   const dir = player.facing;
   const r = player.rect();
   const startX = player.x + dir * (player.w/2 + 8);
@@ -526,6 +664,7 @@ function updateMissiles() {
       combo += 1;
       comboTimer = 1200;
       spawnBurst(m.x, m.y, 12, "#7e3cff");
+      sfxEnemyHit();
       m.alive = false;
     }
   });
@@ -550,7 +689,9 @@ function getBeamParamsForStage() {
 }
 
 function shootBeam() {
+  ensureAudio();
   const params = getBeamParamsForStage();
+  sfxBeam();
   enemy.beamCooldown = params.cooldown;
 
   const r = enemy.rect();
@@ -590,6 +731,7 @@ function updateBeams(dt) {
       playerHitFlash = HIT_FLASH_MS;
       screenShake = SHAKE_MS;
       spawnBurst(b.x, b.y, 10, "#ff5f5f");
+      sfxPlayerHit();
       b.alive = false;
     }
   });
