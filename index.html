@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>いぼ次元ラッシュ v0.31</title>
+  <title>いぼ次元ラッシュ v0.32</title>
   <style>
     body {
       margin: 0;
@@ -76,7 +76,7 @@
 <body>
 <canvas id="game" width="800" height="480"></canvas>
 <div id="info">
-  いぼ次元ラッシュ v0.31
+  いぼ次元ラッシュ v0.32
   ← →：移動　／　Space：ジャンプ　／　I：いぼミサイル　／　Enter：スタート／次へ
 </div>
 
@@ -123,21 +123,39 @@ const BEAM_BASE_COOLDOWN = 900;   // ms
 
 // ===== SE / Web Audio =====
 // 外部音声ファイルなし。レトロゲーム風SEをブラウザ内で合成する。
+// ブラウザの自動再生制限を避けるため、ユーザー操作後に AudioContext を確実に resume してから鳴らす。
 let audioCtx = null;
 let masterGain = null;
+let audioReadyPromise = null;
 
 function ensureAudio() {
   if (!audioCtx) {
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContextClass) return null;
+    if (!AudioContextClass) return Promise.resolve(null);
+
     audioCtx = new AudioContextClass();
     masterGain = audioCtx.createGain();
-    masterGain.gain.value = 0.16;
+    masterGain.gain.value = 0.32;
     masterGain.connect(audioCtx.destination);
   }
-  if (audioCtx.state === "suspended") audioCtx.resume();
-  return audioCtx;
+
+  if (audioCtx.state === "running") {
+    return Promise.resolve(audioCtx);
+  }
+
+  if (!audioReadyPromise) {
+    audioReadyPromise = audioCtx.resume()
+      .then(() => audioCtx)
+      .catch(() => null)
+      .finally(() => { audioReadyPromise = null; });
+  }
+  return audioReadyPromise;
 }
+
+// 最初のユーザー操作で先にオーディオを解除
+["pointerdown", "keydown", "touchstart"].forEach(ev => {
+  window.addEventListener(ev, () => { ensureAudio(); }, { once: true, capture: true });
+});
 
 function playTone({
   type = "square",
@@ -147,103 +165,114 @@ function playTone({
   volume = 0.25,
   delay = 0
 } = {}) {
-  const ac = ensureAudio();
-  if (!ac || !masterGain) return;
+  ensureAudio().then(ac => {
+    if (!ac || !masterGain) return;
 
-  const t0 = ac.currentTime + delay;
-  const t1 = t0 + duration;
-  const osc = ac.createOscillator();
-  const gain = ac.createGain();
+    const t0 = ac.currentTime + delay;
+    const t1 = t0 + duration;
+    const osc = ac.createOscillator();
+    const gain = ac.createGain();
 
-  osc.type = type;
-  osc.frequency.setValueAtTime(Math.max(30, freq), t0);
-  if (endFreq !== null) {
-    osc.frequency.exponentialRampToValueAtTime(Math.max(30, endFreq), t1);
-  }
+    osc.type = type;
+    osc.frequency.setValueAtTime(Math.max(30, freq), t0);
+    if (endFreq !== null) {
+      osc.frequency.exponentialRampToValueAtTime(Math.max(30, endFreq), t1);
+    }
 
-  gain.gain.setValueAtTime(0.0001, t0);
-  gain.gain.exponentialRampToValueAtTime(Math.max(0.0001, volume), t0 + Math.min(0.012, duration * 0.25));
-  gain.gain.exponentialRampToValueAtTime(0.0001, t1);
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.exponentialRampToValueAtTime(
+      Math.max(0.0001, volume),
+      t0 + Math.min(0.012, duration * 0.25)
+    );
+    gain.gain.exponentialRampToValueAtTime(0.0001, t1);
 
-  osc.connect(gain);
-  gain.connect(masterGain);
-  osc.start(t0);
-  osc.stop(t1 + 0.02);
+    osc.connect(gain);
+    gain.connect(masterGain);
+    osc.start(t0);
+    osc.stop(t1 + 0.02);
+  });
 }
 
 function playNoise(duration = 0.08, volume = 0.18, delay = 0) {
-  const ac = ensureAudio();
-  if (!ac || !masterGain) return;
+  ensureAudio().then(ac => {
+    if (!ac || !masterGain) return;
 
-  const sampleCount = Math.max(1, Math.floor(ac.sampleRate * duration));
-  const buffer = ac.createBuffer(1, sampleCount, ac.sampleRate);
-  const data = buffer.getChannelData(0);
-  for (let i = 0; i < sampleCount; i++) {
-    const decay = 1 - i / sampleCount;
-    data[i] = (Math.random() * 2 - 1) * decay;
-  }
+    const sampleCount = Math.max(1, Math.floor(ac.sampleRate * duration));
+    const buffer = ac.createBuffer(1, sampleCount, ac.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < sampleCount; i++) {
+      const decay = 1 - i / sampleCount;
+      data[i] = (Math.random() * 2 - 1) * decay;
+    }
 
-  const src = ac.createBufferSource();
-  const filter = ac.createBiquadFilter();
-  const gain = ac.createGain();
-  const t0 = ac.currentTime + delay;
+    const src = ac.createBufferSource();
+    const filter = ac.createBiquadFilter();
+    const gain = ac.createGain();
+    const t0 = ac.currentTime + delay;
 
-  filter.type = "bandpass";
-  filter.frequency.value = 950;
-  filter.Q.value = 0.7;
-  gain.gain.setValueAtTime(volume, t0);
-  gain.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
+    filter.type = "bandpass";
+    filter.frequency.value = 950;
+    filter.Q.value = 0.7;
+    gain.gain.setValueAtTime(volume, t0);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
 
-  src.buffer = buffer;
-  src.connect(filter);
-  filter.connect(gain);
-  gain.connect(masterGain);
-  src.start(t0);
+    src.buffer = buffer;
+    src.connect(filter);
+    filter.connect(gain);
+    gain.connect(masterGain);
+    src.start(t0);
+  });
 }
 
 function sfxStart() {
-  playTone({ type:"square", freq:392, endFreq:523, duration:0.07, volume:0.20 });
-  playTone({ type:"square", freq:523, endFreq:659, duration:0.09, volume:0.18, delay:0.07 });
+  playTone({ type:"square", freq:392, endFreq:523, duration:0.07, volume:0.22 });
+  playTone({ type:"square", freq:523, endFreq:659, duration:0.09, volume:0.20, delay:0.07 });
 }
 
 function sfxJump() {
-  playTone({ type:"square", freq:300, endFreq:620, duration:0.12, volume:0.20 });
+  playTone({ type:"square", freq:300, endFreq:620, duration:0.12, volume:0.24 });
 }
 
 function sfxMissile() {
-  playTone({ type:"square", freq:760, endFreq:280, duration:0.10, volume:0.15 });
-  playTone({ type:"triangle", freq:980, endFreq:520, duration:0.06, volume:0.08, delay:0.015 });
+  playTone({ type:"square", freq:760, endFreq:280, duration:0.10, volume:0.20 });
+  playTone({ type:"triangle", freq:980, endFreq:520, duration:0.06, volume:0.12, delay:0.015 });
 }
 
 function sfxBeam() {
-  playTone({ type:"sawtooth", freq:220, endFreq:520, duration:0.13, volume:0.10 });
+  playTone({ type:"sawtooth", freq:220, endFreq:520, duration:0.13, volume:0.14 });
 }
 
 function sfxEnemyHit() {
-  playNoise(0.07, 0.16);
-  playTone({ type:"square", freq:190, endFreq:110, duration:0.10, volume:0.18 });
+  playNoise(0.07, 0.20);
+  playTone({ type:"square", freq:190, endFreq:110, duration:0.10, volume:0.22 });
 }
 
 function sfxPlayerHit() {
-  playNoise(0.10, 0.20);
-  playTone({ type:"sawtooth", freq:150, endFreq:70, duration:0.16, volume:0.16 });
+  playNoise(0.10, 0.24);
+  playTone({ type:"sawtooth", freq:150, endFreq:70, duration:0.16, volume:0.20 });
 }
 
 function sfxStageClear() {
   [523, 659, 784, 1047].forEach((f, i) => {
-    playTone({ type:"square", freq:f, duration:0.11, volume:0.16, delay:i * 0.09 });
+    playTone({ type:"square", freq:f, duration:0.11, volume:0.20, delay:i * 0.09 });
   });
 }
 
 function sfxVictory() {
   [523, 659, 784, 1047, 1319].forEach((f, i) => {
-    playTone({ type:i < 4 ? "square" : "triangle", freq:f, duration:i === 4 ? 0.28 : 0.10, volume:0.17, delay:i * 0.09 });
+    playTone({
+      type:i < 4 ? "square" : "triangle",
+      freq:f,
+      duration:i === 4 ? 0.28 : 0.10,
+      volume:0.20,
+      delay:i * 0.09
+    });
   });
 }
 
 function sfxDefeat() {
   [330, 277, 220, 165].forEach((f, i) => {
-    playTone({ type:"square", freq:f, duration:0.15, volume:0.14, delay:i * 0.12 });
+    playTone({ type:"square", freq:f, duration:0.15, volume:0.18, delay:i * 0.12 });
   });
 }
 
