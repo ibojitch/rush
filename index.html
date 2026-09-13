@@ -2,66 +2,73 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>いぼ次元ラッシュ v0.40 prototype</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#17152e">
+<title>いぼ次元ラッシュ v0.50 · COLOR TRAIL</title>
 <style>
-  html, body { margin:0; min-height:100%; background:#17121f; font-family:"Yu Gothic",system-ui,sans-serif; }
-  body { display:flex; flex-direction:column; align-items:center; color:#fff; overflow-x:hidden; }
-  #wrap { width:min(100%, 1100px); padding:12px; box-sizing:border-box; }
-  canvas { display:block; width:100%; height:auto; background:#9ed8ff; border:3px solid #3c2b44; border-radius:12px; box-shadow:0 12px 40px rgba(0,0,0,.35); image-rendering:pixelated; }
-  #hud { display:flex; justify-content:space-between; gap:12px; align-items:center; font-size:14px; margin:8px 4px 0; color:#e8e5ef; }
-  #mobile { display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:8px; margin-top:10px; }
-  #mobile button { font-size:16px; padding:12px 8px; border-radius:10px; border:1px solid #6b5a79; background:#2a2030; color:white; touch-action:none; }
-  @media (min-width:900px) { #mobile { max-width:650px; margin:10px auto 0; } }
+  *{box-sizing:border-box} html,body{margin:0;background:#141225;color:#faf5ff;font-family:system-ui,"Yu Gothic",sans-serif;min-height:100%;overscroll-behavior:none}
+  body{display:grid;place-items:center;min-height:100dvh;background:radial-gradient(ellipse at top,#35305c,#141225 70%)}
+  #wrap{width:min(1100px,100%);padding:20px} .mast{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}.brand{font-weight:900;letter-spacing:.08em}.brand small{display:block;color:#b7abd1;font-size:10px;letter-spacing:.26em;margin-top:4px}
+  .tools{display:flex;gap:8px}button{font:inherit;color:inherit;border:1px solid #ffffff30;background:#ffffff10;border-radius:12px;padding:9px 14px;cursor:pointer;touch-action:none}button:focus-visible{outline:3px solid #9cf1d0}button:hover{background:#ffffff22}
+  #screen{position:relative;isolation:isolate}canvas{display:block;width:100%;height:auto;border-radius:18px;box-shadow:0 20px 70px #0007;touch-action:none}
+  #hud{display:flex;justify-content:space-between;gap:12px;font-size:12px;color:#b7abd1;padding:12px 4px}
+  #mobile{display:none;position:absolute;inset:0;pointer-events:none;align-items:flex-end;justify-content:space-between;padding:18px 22px;z-index:2}.pad{display:flex;gap:12px}#mobile button{pointer-events:auto;width:62px;height:62px;padding:0;background:#20172b70;border:2px solid #ffffff70;border-radius:50%;font-size:24px;font-weight:800;user-select:none;-webkit-user-select:none}#mobile button.pressed{background:#aa79edb0;transform:scale(.94)}#mobile #jump{width:76px;height:76px;background:#7348b699}#mobile #shot{font-size:16px;align-self:flex-end}
+  #overlay{position:absolute;inset:0;z-index:3;display:grid;place-items:center;border-radius:18px;background:#18132980;backdrop-filter:blur(6px)}#overlay[hidden]{display:none}.card{text-align:center;max-width:520px;padding:25px}.eyebrow{color:#b5f5cf;font-size:11px;letter-spacing:.25em}.card h1{font-size:clamp(25px,5vw,48px);margin:12px 0}.card p{color:#f0e9fa;line-height:1.7;font-size:14px}.primary{background:#b5f5cf;color:#222033;border:0;font-weight:800;padding:13px 28px}.primary:hover{background:#d2ffe3}.secondary{margin-left:8px}#rotate{display:none}
+  @media(pointer:coarse){#mobile{display:flex}#hud .help{display:none}}
+  @media(max-height:600px) and (orientation:landscape){#wrap{width:min(100vw,calc((100dvh - 42px)*16/9));padding:0}.mast{height:36px;margin:0;padding:0 8px}.brand{font-size:12px}.brand small,#hud{display:none}.tools button{padding:4px 10px;font-size:12px}canvas,#overlay{border-radius:0}#mobile{padding:10px 18px}.card{padding:10px}.card h1{margin:7px 0}.card p{margin:8px 0}}
+  @media(orientation:portrait) and (pointer:coarse){#rotate{display:grid;position:fixed;inset:0;z-index:10;place-content:center;text-align:center;background:#17152ef5;padding:30px;font-size:20px}}
+  #wrap:fullscreen{display:flex;flex-direction:column;align-items:center;justify-content:center;background:#141225;width:100vw;height:100dvh;padding:0}#wrap:fullscreen #screen,#wrap:fullscreen .mast{width:min(100vw,calc((100dvh - 42px)*16/9))}#wrap:fullscreen .mast{height:36px;margin:0;padding:0 8px;flex-shrink:0}#wrap:fullscreen .brand small,#wrap:fullscreen #hud{display:none}#wrap:fullscreen .tools button{padding:4px 10px;font-size:12px}
 </style>
 </head>
 <body>
 <div id="wrap">
-  <canvas id="game" width="960" height="540"></canvas>
-  <div id="hud">
-    <div>← → / A D：移動　Space / W：ジャンプ　I / J：いぼミサイル　R：リスタート</div>
-    <div id="status">v0.40 prototype</div>
+  <header class="mast"><div class="brand">いぼ次元ラッシュ<small>COLOR TRAIL / 3 STAGES</small></div><div class="tools"><button id="sound" aria-label="音のオンオフ" aria-pressed="false">音 OFF</button><button id="pause">一時停止</button><button id="fullscreen">全画面</button></div></header>
+  <div id="screen">
+    <canvas id="game" width="960" height="540" aria-label="いぼ次元ラッシュ ゲーム画面"></canvas>
+    <div id="mobile"><div class="pad"><button id="left" aria-label="左へ">‹</button><button id="right" aria-label="右へ">›</button></div><div class="pad"><button id="shot" aria-label="ミサイル">SHOT</button><button id="jump" aria-label="ジャンプ">↑</button></div></div>
+    <div id="overlay"><div class="card"><div class="eyebrow" id="eyebrow">A LITTLE HERO. A COLORFUL JOURNEY.</div><h1 id="heading">いぼ次元ラッシュ</h1><p id="message">走って、跳んで、いぼミサイル！<br>3つの景色をめぐる、小さな冒険。</p><button class="primary" id="action">あそぶ</button><button class="secondary" id="retry" hidden>もう一度</button></div></div>
   </div>
-  <div id="mobile">
-    <button id="left">←</button>
-    <button id="right">→</button>
-    <button id="jump">ジャンプ</button>
-    <button id="shot">ミサイル</button>
-  </div>
-</div>
+  <div id="hud"><span class="help">← → / A D 移動　Space / W ジャンプ　I / J ミサイル　Esc 一時停止　R リトライ</span><span id="status">v0.50 · COLOR TRAIL</span></div>
+</div><div id="rotate">↻<br>横向きにして遊んでね</div>
 
 <script>
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
-ctx.imageSmoothingEnabled = false;
+ctx.imageSmoothingEnabled = true;
+ctx.imageSmoothingQuality = "high";
 
 const W = canvas.width, H = canvas.height;
 const GRAVITY = 0.75;
-const WORLD_W = 5200;
+let WORLD_W = 5200;
+const SHOT_RANGE = W * 2 / 5;
+const SPRITE_FRAMES = [[{"x": 52, "y": 241, "w": 148, "h": 209}, {"x": 266, "y": 241, "w": 145, "h": 209}, {"x": 486, "y": 243, "w": 147, "h": 210}, {"x": 707, "y": 241, "w": 146, "h": 212}, {"x": 934, "y": 243, "w": 148, "h": 208}, {"x": 1153, "y": 243, "w": 148, "h": 210}, {"x": 1372, "y": 211, "w": 160, "h": 212}, {"x": 1595, "y": 268, "w": 153, "h": 185}], [{"x": 49, "y": 580, "w": 145, "h": 215}, {"x": 266, "y": 580, "w": 144, "h": 215}, {"x": 487, "y": 580, "w": 144, "h": 222}, {"x": 700, "y": 574, "w": 153, "h": 228}, {"x": 925, "y": 580, "w": 148, "h": 222}, {"x": 1147, "y": 580, "w": 148, "h": 222}, {"x": 1371, "y": 558, "w": 150, "h": 216}, {"x": 1595, "y": 607, "w": 148, "h": 194}]];
+let mode="title", stageIndex=0, muted=true, musicTimer=0, musicStep=0;
 const FLOOR_Y = 455;
 
 const atlas = new Image();
-atlas.src = "ibojigen_sprite_atlas_512x256.png";
 let atlasReady = false;
-atlas.onload = () => atlasReady = true;
+atlas.onload = () => { atlasReady = true; };
+atlas.onerror = () => { document.getElementById("status").textContent="キャラ画像を読み込めません。再読み込みしてください。"; };
+atlas.src = "ibojigen_sprite_atlas_512x256.png";
 
 const keys = Object.create(null);
 addEventListener("keydown", e => {
   keys[e.key.toLowerCase()] = true;
   if (["arrowleft","arrowright"," ","w","a","d","i","j","r"].includes(e.key.toLowerCase())) e.preventDefault();
-  if (e.key.toLowerCase() === "r") resetLevel();
+  if (e.key.toLowerCase() === "r" && mode!=="title") { resetLevel(); setMode("playing"); }
+  if(e.key==="Escape" && !e.repeat) togglePause();
+  if(e.key==="Enter" && !e.repeat && mode!=="playing") document.getElementById("action").click();
 });
 addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
-addEventListener("blur", () => { for (const k in keys) keys[k]=false; });
+addEventListener("blur", () => { clearKeys(); if(mode==="playing") setMode("paused"); });
+document.addEventListener("visibilitychange",()=>{if(document.hidden && mode==="playing"){clearKeys();setMode("paused");}});
 
-function bindHold(id, key) {
-  const el = document.getElementById(id);
-  const down = e => { e.preventDefault(); keys[key]=true; };
-  const up = e => { e.preventDefault(); keys[key]=false; };
-  el.addEventListener("pointerdown", down);
-  el.addEventListener("pointerup", up);
-  el.addEventListener("pointercancel", up);
-  el.addEventListener("pointerleave", up);
+function clearKeys(){for(const k in keys) keys[k]=false;document.querySelectorAll(".pressed").forEach(e=>e.classList.remove("pressed"));}
+function bindHold(id,key){
+ const el=document.getElementById(id);let pointer=null;
+ el.addEventListener("pointerdown",e=>{e.preventDefault();if(pointer!==null)return;pointer=e.pointerId;el.setPointerCapture(pointer);keys[key]=true;el.classList.add("pressed");});
+ const up=e=>{if(e.pointerId!==pointer)return;keys[key]=false;pointer=null;el.classList.remove("pressed");};
+ el.addEventListener("pointerup",up);el.addEventListener("pointercancel",up);el.addEventListener("lostpointercapture",up);
 }
 bindHold("left","arrowleft"); bindHold("right","arrowright");
 bindHold("jump"," "); bindHold("shot","i");
@@ -82,6 +89,7 @@ function audio() {
 }
 ["pointerdown","keydown","touchstart"].forEach(ev=>addEventListener(ev, audio, {once:true, capture:true}));
 function tone(f1,f2,d=.08,type="square",v=.16) {
+  if(muted) return;
   const a=audio(); if(!a) return;
   const o=a.createOscillator(), g=a.createGain(), t=a.currentTime;
   o.type=type; o.frequency.setValueAtTime(f1,t);
@@ -103,7 +111,7 @@ const sfx = {
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const intersect=(a,b)=>a.x<b.x+b.w && a.x+a.w>b.x && a.y<b.y+b.h && a.y+a.h>b.y;
 
-const level = {
+const baseLevel = {
   platforms: [
     {x:0,y:FLOOR_Y,w:860,h:85},
     {x:980,y:FLOOR_Y,w:760,h:85},
@@ -132,6 +140,38 @@ const level = {
   goalX: 5050
 };
 
+const themes=[
+ {name:"はじまりの草原",sky:["#84d6f4","#fce3b5","#efd1a3"],mountains:["#bbc5dc","#8aa7bb"],grass:"#8bce86",dirt:"#ba8560",accent:"#8b49ff",notes:[261.63,329.63,392,523.25,440,392,329.63,293.66]},
+ {name:"夕焼けの遺跡",sky:["#aa95db","#ffc6aa","#efad87"],mountains:["#ba91bc","#88799d"],grass:"#e5b578",dirt:"#9b7180",accent:"#e88d70",notes:[293.66,349.23,440,587.33,523.25,440,349.23,329.63]},
+ {name:"星あかりの森",sky:["#24294f","#52678f","#8a99af"],mountains:["#556582","#3e536d"],grass:"#79c6b3",dirt:"#69758b",accent:"#83e3d7",notes:[261.63,311.13,392,523.25,466.16,392,311.13,349.23]}
+];
+function buildLevel(index){
+ const offsets=[0,65,-45];
+ const platforms=baseLevel.platforms.map((p,i)=>({...p,...(i>=5?{x:p.x+offsets[index],y:p.y-(index===2?20:0)}:{})}));
+ const coins=baseLevel.coins.map(c=>({...c,x:c.x+offsets[index],y:c.y-(index===2?20:0)}));
+ const enemySpawns=baseLevel.enemySpawns.map((e,i)=>({...e,type:index===0?"walker":i%3===1?"flyer":i%3===2?"hopper":"walker"}));
+ if(index>0)enemySpawns.push({x:1550,y:320,type:"flyer"},{x:4350,y:FLOOR_Y,type:"hopper"});
+ return {platforms,coins,enemySpawns,goalX:baseLevel.goalX};
+}
+let level=buildLevel(0);
+function setMode(next){
+ mode=next;clearKeys();const overlay=document.getElementById("overlay");overlay.hidden=next==="playing";
+ document.getElementById("pause").textContent=next==="paused"?"再開":"一時停止";
+ const title=document.getElementById("heading"),message=document.getElementById("message"),action=document.getElementById("action");
+ document.getElementById("retry").hidden=next!=="clear";
+ if(next==="paused"){title.textContent="ちょっと休憩";message.textContent="準備ができたら、冒険の続きを。";action.textContent="つづける";}
+ if(next==="dead"){title.textContent="もう一度、いこう！";message.textContent="コツは近づいて撃つこと。踏みつけも使えるよ。";action.textContent="リトライ";}
+ if(next==="clear"){title.textContent=stageIndex===2?"冒険、コンプリート！":"STAGE CLEAR!";message.textContent=`${themes[stageIndex].name} · いぼ ${player.score} / ${level.coins.length}`;action.textContent=stageIndex===2?"最初から遊ぶ":"次のステージへ";}
+}
+function togglePause(){if(mode==="playing")setMode("paused");else if(mode==="paused")setMode("playing");}
+document.getElementById("pause").onclick=togglePause;
+document.getElementById("action").onclick=()=>{audio();if(mode==="clear")stageIndex=(stageIndex+1)%3;if(mode!=="paused")resetLevel();setMode("playing");};
+document.getElementById("retry").onclick=()=>{resetLevel();setMode("playing");};
+document.getElementById("sound").onclick=()=>{muted=!muted;audio();master?.gain.setValueAtTime(muted?0:.23,ac.currentTime);document.getElementById("sound").textContent=muted?"音 OFF":"音 ON";document.getElementById("sound").setAttribute("aria-pressed",String(!muted));};
+document.getElementById("fullscreen").onclick=async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await document.getElementById("wrap").requestFullscreen();}catch{document.getElementById("status").textContent="このブラウザでは全画面表示に対応していません";}};
+document.addEventListener("fullscreenchange",()=>{document.getElementById("fullscreen").textContent=document.fullscreenElement?"全画面終了":"全画面";});
+function updateMusic(dt){if(muted)return;musicTimer-=dt;if(musicTimer<=0){musicTimer=220;const notes=themes[stageIndex].notes;const f=notes[musicStep%notes.length];tone(f,f,.25,"sine",.035);if(musicStep%4===0)tone(notes[0]/2,notes[0]/2,.7,"triangle",.04);musicStep++;}}
+
 const player = {
   x:120,y:380,w:42,h:78,vx:0,vy:0,
   speed:4.8,jump:-14.5,onGround:false,facing:1,
@@ -142,12 +182,14 @@ let enemies=[], shots=[], particles=[], cameraX=0, last=0, clearPlayed=false;
 
 function makeEnemy(s) {
   return {
-    x:s.x,y:s.y-72,w:42,h:72,vx:-1.0,vy:0,onGround:false,
+    type:s.type||"walker", phase:s.x*.01, hopTimer:900+s.x%500,
+    x:s.x,y:s.type==="flyer"?s.y-105:s.y,w:42,h:72,vx:-1.0,vy:0,onGround:false,
     facing:-1, alive:true, hp:1, minX:s.x-120,maxX:s.x+120
   };
 }
 function resetLevel() {
-  Object.assign(player,{x:120,y:380,vx:0,vy:0,onGround:false,facing:1,hp:3,inv:0,shotCd:0,score:0,dead:false,clear:false});
+  level=buildLevel(stageIndex);musicTimer=0;musicStep=0;
+  Object.assign(player,{x:120,y:380,vx:0,vy:0,onGround:false,facing:1,hp:3,inv:0,shotCd:0,score:0,dead:false,clear:false,_jumpLatch:false,_shotLatch:false,coyote:0,jumpBuffer:0,safeX:120,safeY:FLOOR_Y,recoil:0});
   enemies=level.enemySpawns.map(makeEnemy);
   shots=[]; particles=[]; cameraX=0; clearPlayed=false;
   level.coins.forEach(c=>c.taken=false);
@@ -160,7 +202,7 @@ function moveAndCollide(o, dtScale, platforms) {
   // horizontal
   o.x += o.vx*dtScale;
   let r=standingRect(o);
-  for (const p of platforms) if (intersect(r,p)) {
+  for (const p of platforms) if (p.y>=FLOOR_Y && intersect(r,p)) {
     if (o.vx>0) o.x=p.x-o.w/2;
     else if (o.vx<0) o.x=p.x+p.w+o.w/2;
     r=standingRect(o);
@@ -174,7 +216,7 @@ function moveAndCollide(o, dtScale, platforms) {
   for (const p of platforms) if (intersect(r,p)) {
     if (o.vy>0 && (r.y+r.h-o.vy*dtScale)<=p.y+8) {
       o.y=p.y; o.vy=0; o.onGround=true;
-    } else if (o.vy<0) {
+    } else if (o.vy<0 && p.y>=FLOOR_Y) {
       o.y=p.y+p.h+o.h; o.vy=0;
     }
     r=standingRect(o);
@@ -189,11 +231,17 @@ function spawnBurst(x,y,color,count=8){
 
 function update(dt) {
   const f=Math.min(2.2,dt/16.6667);
-  if (player.dead || player.clear) {
-    updateParticles(f,dt);
+  if (mode!=="playing") {
     return;
   }
 
+  updateMusic(dt);
+  player.recoil=Math.max(0,player.recoil-dt);
+  player.coyote=player.onGround?100:Math.max(0,player.coyote-dt);
+  const jumpHeld=keys[" "]||keys["w"];
+  if(jumpHeld&&!player._jumpLatch)player.jumpBuffer=120;
+  else player.jumpBuffer=Math.max(0,player.jumpBuffer-dt);
+  player._jumpLatch=!!jumpHeld;
   player.inv=Math.max(0,player.inv-dt);
   player.shotCd=Math.max(0,player.shotCd-dt);
 
@@ -202,14 +250,11 @@ function update(dt) {
   if (Math.abs(player.vx)<.08) player.vx=0;
   if (player.vx!==0) player.facing=Math.sign(player.vx);
 
-  if ((keys[" "]||keys["w"]) && player.onGround && !player._jumpLatch) {
-    player.vy=player.jump; player.onGround=false; player._jumpLatch=true; sfx.jump();
-  }
-  if (!(keys[" "]||keys["w"])) player._jumpLatch=false;
+  if(player.jumpBuffer>0 && player.coyote>0){player.vy=player.jump;player.onGround=false;player.coyote=0;player.jumpBuffer=0;sfx.jump();spawnBurst(player.x,player.y,"#ffffff",5);}
 
   if ((keys["i"]||keys["j"]) && player.shotCd<=0 && !player._shotLatch) {
-    player.shotCd=280; player._shotLatch=true;
-    shots.push({x:player.x+player.facing*34,y:player.y-42,vx:player.facing*8.5,r:7,alive:true});
+    player.shotCd=280; player._shotLatch=true;player.recoil=130;
+    shots.push({x:player.x+player.facing*34,y:player.y-42,vx:player.facing*8.5,r:7,alive:true,distance:0});
     sfx.shot();
   }
   if (!(keys["i"]||keys["j"])) player._shotLatch=false;
@@ -217,8 +262,10 @@ function update(dt) {
   moveAndCollide(player,f,level.platforms);
   player.x=clamp(player.x,30,WORLD_W-30);
 
+  if(player.onGround && level.platforms.some(p=>player.y===p.y&&player.x>p.x+35&&player.x<p.x+p.w-35)){player.safeX=player.x;player.safeY=player.y;}
   // fall
-  if (player.y>H+250) hurtPlayer(true);
+  if (player.y>H+100) hurtPlayer(true);
+  if(player.dead)return;
 
   // coins
   for(const c of level.coins){
@@ -235,7 +282,15 @@ function update(dt) {
       if(e.x>e.maxX) e.vx=-Math.abs(e.vx);
     }
     e.facing=Math.sign(e.vx)||-1;
-    moveAndCollide(e,f,level.platforms);
+    e.phase+=dt*.003;
+    if(e.type==="flyer"){
+      e.x+=e.vx*f;if(e.x<e.minX||e.x>e.maxX)e.vx*=-1;
+      e.y=FLOOR_Y-95+Math.sin(e.phase)*28;e.onGround=false;e.vy=0;
+    }else{
+      if(e.type==="hopper"){e.hopTimer-=dt;if(e.onGround&&e.hopTimer<=0){e.vy=-10;e.hopTimer=1400;}}
+      if(e.onGround&&!level.platforms.some(p=>Math.abs(p.y-e.y)<3&&e.x+Math.sign(e.vx)*28>=p.x&&e.x+Math.sign(e.vx)*28<=p.x+p.w))e.vx*=-1;
+      moveAndCollide(e,f,level.platforms);
+    }
     const pr=standingRect(player), er=standingRect(e);
     if(intersect(pr,er) && player.inv<=0){
       const playerBottom=pr.y+pr.h;
@@ -248,8 +303,9 @@ function update(dt) {
   // shots
   for(const s of shots){
     if(!s.alive) continue;
-    s.x+=s.vx*f;
-    if(s.x<cameraX-100||s.x>cameraX+W+100) s.alive=false;
+    const travel=Math.min(Math.abs(s.vx*f),SHOT_RANGE-s.distance);
+    s.x+=Math.sign(s.vx)*travel;s.distance+=travel;
+    if(level.platforms.some(p=>intersect({x:s.x-s.r,y:s.y-s.r,w:s.r*2,h:s.r*2},p))){s.alive=false;spawnBurst(s.x,s.y,"#cdb3ff",4);continue;}
     const sr={x:s.x-s.r,y:s.y-s.r,w:s.r*2,h:s.r*2};
     for(const e of enemies){
       if(!e.alive) continue;
@@ -258,10 +314,11 @@ function update(dt) {
       }
     }
   }
+    for(const s of shots)if(s.alive&&s.distance>=SHOT_RANGE){s.alive=false;spawnBurst(s.x,s.y,"#cdb3ff",4);}
   shots=shots.filter(s=>s.alive);
 
   if (player.x>level.goalX) {
-    player.clear=true;
+    player.clear=true;setMode("clear");
     if(!clearPlayed){clearPlayed=true; sfx.clear();}
   }
 
@@ -273,13 +330,12 @@ function update(dt) {
 }
 
 function hurtPlayer(fall){
-  if(player.inv>0||player.dead) return;
-  player.hp--;
-  sfx.hit(); spawnBurst(player.x,player.y-40,"#ff5f7a",10);
-  if(player.hp<=0){player.dead=true; return;}
+  if(player.dead || (!fall&&player.inv>0))return;
+  player.hp--;sfx.hit();spawnBurst(player.x,player.y-40,"#ff89a4",14);
+  if(player.hp<=0){player.dead=true;setMode("dead");return;}
   player.inv=1200;
-  player.x=Math.max(100,cameraX+140);
-  player.y=260; player.vx=0; player.vy=0;
+  if(fall){player.x=player.safeX;player.y=player.safeY;player.vx=0;player.vy=0;}
+  else {player.x=clamp(player.x-player.facing*18,30,WORLD_W-30);player.vy=-6;}
 }
 function updateParticles(f,dt){
   for(const p of particles){ p.x+=p.vx*f; p.y+=p.vy*f; p.vy+=.18*f; p.life-=dt; }
@@ -293,23 +349,29 @@ function spriteFrame(o,isEnemy){
   return moving?2+(Math.floor(performance.now()/115)%4):Math.floor(performance.now()/520)%2;
 }
 function drawSprite(o,isEnemy=false){
-  const sx=spriteFrame(o,isEnemy)*64, sy=(isEnemy?1:0)*128;
+  const frame=SPRITE_FRAMES[isEnemy?1:0][spriteFrame(o,isEnemy)];
   const nativeFacing=isEnemy?-1:1;
   const flip=o.facing!==nativeFacing;
-  const drawH=isEnemy?120:132, drawW=drawH*.5;
+  const scale=(isEnemy?86:96)/SPRITE_FRAMES[isEnemy?1:0][0].h;
+  const drawH=frame.h*scale, drawW=frame.w*scale;
   ctx.save();
   ctx.translate(o.x-cameraX,o.y);
+  ctx.fillStyle="#24213925";ctx.beginPath();ctx.ellipse(0,1,24,5,0,0,Math.PI*2);ctx.fill();
+  if(isEnemy && o.type==="flyer"){ctx.fillStyle="#d9eaffbb";for(const side of [-1,1]){ctx.beginPath();ctx.ellipse(side*32,-43,20,8,side*Math.sin(o.phase*4)*.5,0,Math.PI*2);ctx.fill();}}
+  if(isEnemy && o.type==="hopper"){ctx.fillStyle="#ffcc72";ctx.beginPath();ctx.moveTo(-12,-87);ctx.lineTo(0,-103);ctx.lineTo(12,-87);ctx.fill();}
+  if(o===player && player.recoil>0)ctx.rotate(-player.facing*.08*player.recoil/130);
   if(player.inv>0 && o===player && Math.floor(performance.now()/70)%2===0) ctx.globalAlpha=.35;
   if(flip) ctx.scale(-1,1);
-  if(atlasReady) ctx.drawImage(atlas,sx,sy,64,128,-drawW/2,-drawH,drawW,drawH);
+  if(atlasReady) ctx.drawImage(atlas,frame.x,frame.y,frame.w,frame.h,-drawW/2,-drawH,drawW,drawH);
   else {ctx.fillStyle=isEnemy?"#f5d3a5":"#b673ff"; ctx.fillRect(-20,-70,40,70);}
   ctx.restore();
 }
 
 function drawBackground(){
+  const theme=themes[stageIndex];
   // sky
   const g=ctx.createLinearGradient(0,0,0,H);
-  g.addColorStop(0,"#9edcff"); g.addColorStop(.65,"#f7d6b1"); g.addColorStop(1,"#e9b97d");
+  g.addColorStop(0,theme.sky[0]); g.addColorStop(.65,theme.sky[1]); g.addColorStop(1,theme.sky[2]);
   ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
 
   // sun
@@ -317,9 +379,10 @@ function drawBackground(){
   ctx.beginPath(); ctx.arc(790-cameraX*.03,90,46,0,Math.PI*2); ctx.fill();
 
   // far mountains
-  drawMountainLayer("#bfa5c9", .12, 330, 110, 320);
-  drawMountainLayer("#9f83ad", .22, 380, 145, 260);
+  drawMountainLayer(theme.mountains[0], .12, 330, 110, 320);
+  drawMountainLayer(theme.mountains[1], .22, 380, 145, 260);
 
+  if(stageIndex===2){ctx.fillStyle="#ffffffaa";for(let i=0;i<45;i++){const x=((i*137-cameraX*.05)%W+W)%W;const y=22+(i*73)%200;ctx.fillRect(x,y,2,2);}}
   // clouds
   for(let i=0;i<8;i++){
     const x=(i*420 - cameraX*.16)%(W+500)-100;
@@ -356,9 +419,10 @@ function drawMountainLayer(color, factor, baseY, amp, step){
 function drawPlatforms(){
   for(const p of level.platforms){
     const x=p.x-cameraX; if(x+p.w<0||x>W) continue;
-    ctx.fillStyle=p.y>=FLOOR_Y?"#b87845":"#8a5b38";
+    ctx.fillStyle=themes[stageIndex].dirt;
     ctx.fillRect(x,p.y,p.w,p.h);
-    ctx.fillStyle="#6fb35f"; ctx.fillRect(x,p.y,p.w,10);
+    ctx.fillStyle=themes[stageIndex].grass; ctx.fillRect(x,p.y,p.w,10);
+    ctx.fillStyle="#ffffff35";ctx.fillRect(x,p.y,p.w,3);
     ctx.fillStyle="rgba(255,255,255,.16)";
     for(let xx=x+18;xx<x+p.w;xx+=42) ctx.fillRect(xx,p.y+22,14,5);
   }
@@ -382,8 +446,9 @@ function drawGoal(){
 function drawShots(){
   for(const s of shots){
     const x=s.x-cameraX;
-    ctx.fillStyle="#8b49ff"; ctx.strokeStyle="#4a1b8d"; ctx.lineWidth=2;
-    ctx.beginPath(); ctx.arc(x,s.y,s.r,0,Math.PI*2); ctx.fill(); ctx.stroke();
+    const trail=ctx.createLinearGradient(x-Math.sign(s.vx)*30,s.y,x,s.y);trail.addColorStop(0,"#b28aff00");trail.addColorStop(1,"#b28affbb");ctx.fillStyle=trail;ctx.beginPath();ctx.ellipse(x-Math.sign(s.vx)*12,s.y,24,5,0,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle="#f2dcff";ctx.shadowColor="#a374ff";ctx.shadowBlur=14; ctx.strokeStyle="#8b49ff"; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.arc(x,s.y,s.r,0,Math.PI*2); ctx.fill(); ctx.stroke();ctx.shadowBlur=0;
   }
 }
 function drawParticles(){
@@ -403,15 +468,8 @@ function drawUI(){
   ctx.fillStyle="#8b49ff"; ctx.fillRect(340,26,300*clamp(progress/100,0,1),12);
   ctx.fillStyle="#fff"; ctx.font="14px Yu Gothic"; ctx.fillText(`${progress}%`,650,38);
 
-  if(player.dead||player.clear){
-    ctx.fillStyle="rgba(15,10,20,.58)"; ctx.fillRect(0,0,W,H);
-    ctx.fillStyle="#fff"; ctx.textAlign="center";
-    ctx.font="bold 48px Yu Gothic";
-    ctx.fillText(player.clear?"STAGE CLEAR!":"GAME OVER",W/2,220);
-    ctx.font="22px Yu Gothic";
-    ctx.fillText(player.clear?`いぼ ${player.score}/${level.coins.length}　Rで最初から`:"Rキーでリトライ",W/2,270);
-    ctx.textAlign="left";
-  }
+  ctx.textAlign="right";ctx.font="bold 15px system-ui";ctx.fillStyle="#fff";ctx.fillText(`${stageIndex+1} / 3 · ${themes[stageIndex].name}`,W-24,34);ctx.textAlign="left";
+
 }
 
 function render(){
@@ -426,11 +484,18 @@ function render(){
   drawUI();
 }
 
+let accumulator=0;
 function loop(t){
-  const dt=last?Math.min(40,t-last):16.67; last=t;
-  update(dt); render(); requestAnimationFrame(loop);
+  const dt=last?Math.min(100,t-last):16.6667; last=t;
+  if(mode==="playing"){
+    accumulator+=dt;
+    while(accumulator>=16.6667){update(16.6667);accumulator-=16.6667;if(mode!=="playing"){accumulator=0;break;}}
+  }else accumulator=0;
+  render(); requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
 </script>
 </body>
 </html>
+
+
