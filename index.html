@@ -22,7 +22,7 @@
 </head>
 <body>
 <div id="wrap">
-  <header class="mast"><div class="brand">いぼ次元ラッシュ<small>COLOR TRAIL / 3 STAGES</small></div><div class="tools"><button id="sound" aria-label="音のオンオフ" aria-pressed="false">音 OFF</button><button id="pause">一時停止</button><button id="fullscreen">全画面</button></div></header>
+  <header class="mast"><div class="brand">いぼ次元ラッシュ<small>COLOR TRAIL / 3 STAGES</small></div><div class="tools"><button id="sound" aria-label="音のオンオフ" aria-pressed="true">音 ON</button><button id="pause">一時停止</button><button id="fullscreen">全画面</button></div></header>
   <div id="screen">
     <canvas id="game" width="960" height="540" aria-label="いぼ次元ラッシュ ゲーム画面"></canvas>
     <div id="mobile"><div class="pad"><button id="left" aria-label="左へ">‹</button><button id="right" aria-label="右へ">›</button></div><div class="pad"><button id="shot" aria-label="ミサイル">SHOT</button><button id="jump" aria-label="ジャンプ">↑</button></div></div>
@@ -75,7 +75,8 @@ const SPRITE_TILES = [
     {name:"enemy_fall",   x:1126,y:262,w:148,h:194}
   ]
 ];
-let mode="title", stageIndex=0, muted=true, musicTimer=0, musicStep=0;
+// `muted` is a player preference: resetLevel and stage changes must not alter it.
+let mode="title", stageIndex=0, muted=false, musicTimer=0, musicStep=0;
 const FLOOR_Y = 455;
 
 const atlas = new Image();
@@ -106,38 +107,65 @@ function bindHold(id,key){
 bindHold("left","arrowleft"); bindHold("right","arrowright");
 bindHold("jump"," "); bindHold("shot","i");
 
-// ---- tiny synth SE ----
-let ac=null, master=null;
+// ---- procedural music / sound effects ----
+// No external audio files: melody, bass, chords, drums and SFX are synthesised
+// with Web Audio. Keep MASTER_VOLUME conservative because several voices overlap.
+const MASTER_VOLUME=.34;
+let ac=null, master=null, musicBus=null, sfxBus=null, delay=null, delayGain=null;
 function audio() {
   if (!ac) {
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return null;
     ac = new AC();
-    master = ac.createGain();
-    master.gain.value = .23;
-    master.connect(ac.destination);
+    master=ac.createGain(); musicBus=ac.createGain(); sfxBus=ac.createGain();
+    const compressor=ac.createDynamicsCompressor();
+    delay=ac.createDelay(.6); delayGain=ac.createGain();
+    master.gain.value=MASTER_VOLUME; musicBus.gain.value=.72; sfxBus.gain.value=.95;
+    delay.delayTime.value=.19; delayGain.gain.value=.18;
+    musicBus.connect(master); sfxBus.connect(master);
+    musicBus.connect(delay); sfxBus.connect(delay); delay.connect(delayGain); delayGain.connect(master);
+    master.connect(compressor); compressor.connect(ac.destination);
   }
   if (ac.state==="suspended") ac.resume();
   return ac;
 }
 ["pointerdown","keydown","touchstart"].forEach(ev=>addEventListener(ev, audio, {once:true, capture:true}));
-function tone(f1,f2,d=.08,type="square",v=.16) {
-  if(muted) return;
-  const a=audio(); if(!a) return;
-  const o=a.createOscillator(), g=a.createGain(), t=a.currentTime;
-  o.type=type; o.frequency.setValueAtTime(f1,t);
+function voice(f1,f2=f1,d=.12,type="square",v=.12,options={}) {
+  if(muted)return;
+  const a=audio();if(!a)return;
+  const t=a.currentTime+(options.delay||0),o=a.createOscillator(),g=a.createGain();
+  const filter=a.createBiquadFilter();
+  o.type=type;o.detune.value=options.detune||0;o.frequency.setValueAtTime(Math.max(30,f1),t);
   o.frequency.exponentialRampToValueAtTime(Math.max(30,f2),t+d);
-  g.gain.setValueAtTime(.0001,t);
-  g.gain.exponentialRampToValueAtTime(v,t+.008);
+  filter.type="lowpass";filter.frequency.setValueAtTime(options.cutoff||5200,t);
+  if(options.cutoffEnd)filter.frequency.exponentialRampToValueAtTime(options.cutoffEnd,t+d);
+  g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(v,t+(options.attack||.008));
   g.gain.exponentialRampToValueAtTime(.0001,t+d);
-  o.connect(g); g.connect(master); o.start(t); o.stop(t+d+.02);
+  o.connect(filter);filter.connect(g);g.connect(options.bus||sfxBus);
+  o.start(t);o.stop(t+d+.03);
+}
+function tone(f1,f2,d=.08,type="square",v=.16){voice(f1,f2,d,type,v)}
+function noise(d=.08,v=.06,options={}){
+  if(muted)return;const a=audio();if(!a)return;
+  const length=Math.max(1,Math.floor(a.sampleRate*d)),buffer=a.createBuffer(1,length,a.sampleRate),data=buffer.getChannelData(0);
+  for(let i=0;i<length;i++)data[i]=(Math.random()*2-1)*(1-i/length);
+  const source=a.createBufferSource(),filter=a.createBiquadFilter(),g=a.createGain(),t=a.currentTime+(options.delay||0);
+  filter.type=options.filterType||"highpass";filter.frequency.value=options.cutoff||900;
+  g.gain.setValueAtTime(v,t);g.gain.exponentialRampToValueAtTime(.0001,t+d);
+  source.buffer=buffer;source.connect(filter);filter.connect(g);g.connect(options.bus||sfxBus);source.start(t);
 }
 const sfx = {
-  jump:()=>tone(280,620,.12,"square",.16),
-  shot:()=>tone(800,250,.09,"square",.13),
-  hit:()=>tone(180,80,.12,"sawtooth",.14),
-  coin:()=>{tone(700,980,.06,"square",.10); setTimeout(()=>tone(980,1320,.06,"square",.08),55);},
-  clear:()=>[523,659,784,1047].forEach((f,i)=>setTimeout(()=>tone(f,f,.12,"square",.12),i*90))
+  jump:()=>{voice(250,620,.14,"square",.12,{cutoff:2600});voice(500,900,.10,"sine",.07,{delay:.025});},
+  shot:()=>{voice(1050,170,.11,"sawtooth",.10,{cutoff:4200,cutoffEnd:500});voice(1700,420,.07,"square",.055);noise(.07,.045,{cutoff:1600});},
+  hit:()=>{voice(190,55,.18,"sawtooth",.14,{cutoff:1300,cutoffEnd:250});voice(95,45,.22,"square",.07);noise(.12,.075,{cutoff:420});},
+  coin:()=>{voice(740,740,.09,"square",.09,{cutoff:3600});voice(1110,1110,.12,"triangle",.08,{delay:.065});voice(1480,1480,.16,"sine",.045,{delay:.12});},
+  clear:()=>{
+    [523.25,659.25,783.99,1046.5].forEach((f,i)=>{
+      voice(f,f,.28,"triangle",.10,{delay:i*.105,bus:sfxBus});
+      voice(f/2,f/2,.34,"sine",.055,{delay:i*.105,bus:sfxBus});
+    });
+    [523.25,659.25,783.99].forEach(f=>voice(f,f,.75,"sine",.035,{delay:.48,bus:sfxBus}));
+  }
 };
 
 // ---- helpers ----
@@ -200,10 +228,33 @@ function togglePause(){if(mode==="playing")setMode("paused");else if(mode==="pau
 document.getElementById("pause").onclick=togglePause;
 document.getElementById("action").onclick=()=>{audio();if(mode==="clear")stageIndex=(stageIndex+1)%3;if(mode!=="paused")resetLevel();setMode("playing");};
 document.getElementById("retry").onclick=()=>{resetLevel();setMode("playing");};
-document.getElementById("sound").onclick=()=>{muted=!muted;audio();master?.gain.setValueAtTime(muted?0:.23,ac.currentTime);document.getElementById("sound").textContent=muted?"音 OFF":"音 ON";document.getElementById("sound").setAttribute("aria-pressed",String(!muted));};
+document.getElementById("sound").onclick=()=>{muted=!muted;audio();master?.gain.setValueAtTime(muted?0:MASTER_VOLUME,ac.currentTime);document.getElementById("sound").textContent=muted?"音 OFF":"音 ON";document.getElementById("sound").setAttribute("aria-pressed",String(!muted));};
 document.getElementById("fullscreen").onclick=async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await document.getElementById("wrap").requestFullscreen();}catch{document.getElementById("status").textContent="このブラウザでは全画面表示に対応していません";}};
 document.addEventListener("fullscreenchange",()=>{document.getElementById("fullscreen").textContent=document.fullscreenElement?"全画面終了":"全画面";});
-function updateMusic(dt){if(muted)return;musicTimer-=dt;if(musicTimer<=0){musicTimer=220;const notes=themes[stageIndex].notes;const f=notes[musicStep%notes.length];tone(f,f,.25,"sine",.035);if(musicStep%4===0)tone(notes[0]/2,notes[0]/2,.7,"triangle",.04);musicStep++;}}
+function updateMusic(dt){
+ if(muted)return;musicTimer-=dt;if(musicTimer>0)return;
+ musicTimer=170;
+ const notes=themes[stageIndex].notes,step=musicStep%16;
+ // Lead melody: slight octave lift and deliberate rests keep the loop breathable.
+ if(![3,7,11].includes(step)){
+   const f=notes[musicStep%notes.length]*(step===14?2:1);
+   voice(f,f*.998,.24,stageIndex===2?"triangle":"square",.035,{attack:.018,cutoff:stageIndex===0?3400:2600,bus:musicBus});
+   voice(f*2,f*2,.16,"sine",.012,{delay:.012,bus:musicBus});
+ }
+ // Root/fifth bass and a soft triad at the start of each half-bar.
+ if(step%4===0){
+   const bass=step%8===0?notes[0]/2:notes[2]/2;
+   voice(bass,bass*.99,.52,"triangle",.075,{attack:.012,cutoff:850,bus:musicBus});
+   voice(92,48,.13,"sine",.09,{cutoff:350,bus:musicBus});
+ }
+ if(step%8===0){
+   [notes[0],notes[2],notes[4]].forEach((f,i)=>voice(f/2,f/2,.9,"sine",.022,{delay:i*.012,attack:.08,cutoff:1800,bus:musicBus}));
+ }
+ // Compact kick/hat rhythm. Stage 2 is intentionally quieter and airier.
+ if(step%2===1)noise(.045,stageIndex===2?.016:.026,{cutoff:4200,bus:musicBus});
+ if(step===6||step===14)noise(.11,.03,{filterType:"bandpass",cutoff:1200,bus:musicBus});
+ musicStep++;
+}
 
 const player = {
   x:120,y:380,w:42,h:78,vx:0,vy:0,

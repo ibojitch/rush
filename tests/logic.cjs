@@ -20,6 +20,8 @@ run('resetLevel();mode="playing";player.y=455;player.onGround=false;player.coyot
 run('resetLevel();player.safeX=500;player.safeY=455;player.x=900;player.y=700;hurtPlayer(true)');assert.equal(run('player.x'),500);assert.equal(run('player.hp'),2);
 run('player.hp=1;hurtPlayer(true)');assert.equal(run('mode'),'dead');el('action').click();assert.equal(run('mode'),'playing');assert.equal(run('player.hp'),3);
 for(let i=0;i<3;i++){run('player.x=level.goalX+1;player.y=455;update(16.6667)');assert.equal(run('mode'),'clear');el('action').click();assert.equal(run('stageIndex'),(i+1)%3);run('render()');}
+run('muted=true;stageIndex=0;resetLevel();player.x=level.goalX+1;mode="playing";update(16.6667)');el('action').click();assert.equal(run('muted'),true);
+run('muted=false;stageIndex=0;resetLevel();player.x=level.goalX+1;mode="playing";update(16.6667)');el('action').click();assert.equal(run('muted'),false);
 run('togglePause()');assert.equal(run('mode'),'paused');const x=run('player.x');run('keys.arrowright=true;update(16.6667)');assert.equal(run('player.x'),x);el('action').click();assert.equal(run('mode'),'playing');
 for(let i=0;i<3;i++){run(`stageIndex=${i};resetLevel();mode="playing";player.inv=100000;for(let n=0;n<600;n++)update(16.6667);render()`);assert(run('enemies.every(e=>Number.isFinite(e.x)&&Number.isFinite(e.y))'));}
 // All intended jumps fit the player's maximum rise. Reachability of the primary route.
