@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#17152e">
-<title>いぼ次元ラッシュ v0.50 · COLOR TRAIL</title>
+<title>いぼ次元ラッシュ v0.60 · COLOR TRAIL</title>
 <style>
   *{box-sizing:border-box} html,body{margin:0;background:#141225;color:#faf5ff;font-family:system-ui,"Yu Gothic",sans-serif;min-height:100%;overscroll-behavior:none}
   body{display:grid;place-items:center;min-height:100dvh;background:radial-gradient(ellipse at top,#35305c,#141225 70%)}
@@ -22,13 +22,13 @@
 </head>
 <body>
 <div id="wrap">
-  <header class="mast"><div class="brand">いぼ次元ラッシュ<small>COLOR TRAIL / 3 STAGES</small></div><div class="tools"><button id="sound" aria-label="音のオンオフ" aria-pressed="true">音 ON</button><button id="pause">一時停止</button><button id="fullscreen">全画面</button></div></header>
+  <header class="mast"><div class="brand">いぼ次元ラッシュ<small>COLOR TRAIL / 5 STAGES</small></div><div class="tools"><button id="sound" aria-label="音のオンオフ" aria-pressed="true">音 ON</button><button id="pause">一時停止</button><button id="fullscreen">全画面</button></div></header>
   <div id="screen">
     <canvas id="game" width="960" height="540" aria-label="いぼ次元ラッシュ ゲーム画面"></canvas>
     <div id="mobile"><div class="pad"><button id="left" aria-label="左へ">‹</button><button id="right" aria-label="右へ">›</button></div><div class="pad"><button id="shot" aria-label="ミサイル">SHOT</button><button id="jump" aria-label="ジャンプ">↑</button></div></div>
-    <div id="overlay"><div class="card"><div class="eyebrow" id="eyebrow">A LITTLE HERO. A COLORFUL JOURNEY.</div><h1 id="heading">いぼ次元ラッシュ</h1><p id="message">走って、跳んで、いぼミサイル！<br>3つの景色をめぐる、小さな冒険。</p><button class="primary" id="action">あそぶ</button><button class="secondary" id="retry" hidden>もう一度</button></div></div>
+    <div id="overlay"><div class="card"><div class="eyebrow" id="eyebrow">A LITTLE HERO. A COLORFUL JOURNEY.</div><h1 id="heading">いぼ次元ラッシュ</h1><p id="message">走って、跳んで、いぼミサイル！<br>5つの景色をめぐる、小さな冒険。<br><strong id="highscore">HIGH SCORE · IBO 000</strong></p><button class="primary" id="action">あそぶ</button><button class="secondary" id="retry" hidden>もう一度</button></div></div>
   </div>
-  <div id="hud"><span class="help">← → / A D 移動　Space / W ジャンプ　I / J ミサイル　Esc 一時停止　R リトライ</span><span id="status">v0.50 · COLOR TRAIL</span></div>
+  <div id="hud"><span class="help">← → / A D 移動　Space / X ジャンプ　I / Z ミサイル　Esc 一時停止　R ステージ1へ　GAME OVER時 C コンティニュー</span><span id="status">v0.60 · COLOR TRAIL</span></div>
 </div><div id="rotate">↻<br>横向きにして遊んでね</div>
 
 <script>
@@ -41,6 +41,7 @@ const W = canvas.width, H = canvas.height;
 const GRAVITY = 0.75;
 let WORLD_W = 5200;
 const SHOT_RANGE = W * 2 / 5;
+const STAGE_COUNT = 5;
 /*
  * SPRITE ATLAS SPECIFICATION
  * File: ibojigen_sprite_atlas_1280x456.png (actual size: 1280 x 456 px)
@@ -78,6 +79,19 @@ const SPRITE_TILES = [
 // `muted` is a player preference: resetLevel and stage changes must not alter it.
 let mode="title", stageIndex=0, muted=false, musicTimer=0, musicStep=0;
 const FLOOR_Y = 455;
+const HIGH_SCORE_KEY="ibojigen-rush-high-score";
+let totalIbo=0,stageStartIbo=0,runMaxHp=3,highScore=loadHighScore(),starMilestones=new Set();
+
+function loadHighScore(){try{return Math.max(0,Number(localStorage.getItem(HIGH_SCORE_KEY))||0);}catch{return 0;}}
+function saveHighScore(){
+ if(totalIbo<=highScore)return;highScore=totalIbo;
+ try{localStorage.setItem(HIGH_SCORE_KEY,String(highScore));}catch{}
+ updateHighScoreDisplay();
+}
+function updateHighScoreDisplay(){
+ const el=document.getElementById("highscore");if(el)el.textContent=`HIGH SCORE · IBO ${String(highScore).padStart(3,"0")}`;
+}
+updateHighScoreDisplay();
 
 const atlas = new Image();
 let atlasReady = false;
@@ -88,10 +102,11 @@ atlas.src = "ibojigen_sprite_atlas_1280x456.png";
 const keys = Object.create(null);
 addEventListener("keydown", e => {
   keys[e.key.toLowerCase()] = true;
-  if (["arrowleft","arrowright"," ","w","a","d","i","j","r"].includes(e.key.toLowerCase())) e.preventDefault();
-  if (e.key.toLowerCase() === "r" && mode!=="title") { resetLevel(); setMode("playing"); }
+  if (["arrowleft","arrowright"," ","z","a","c","d","i","x","r"].includes(e.key.toLowerCase())) e.preventDefault();
+  if(e.key.toLowerCase()==="r"&&mode!=="title")startFromStageOne();
+  if(e.key.toLowerCase()==="c"&&mode==="dead")restartCurrentStage();
   if(e.key==="Escape" && !e.repeat) togglePause();
-  if(e.key==="Enter" && !e.repeat && mode!=="playing") document.getElementById("action").click();
+  if(["i","x"].includes(e.key.toLowerCase())&&!e.repeat&&mode==="clear")document.getElementById("action").click();
 });
 addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
 addEventListener("blur", () => { clearKeys(); if(mode==="playing") setMode("paused"); });
@@ -159,6 +174,10 @@ const sfx = {
   shot:()=>{voice(1050,170,.11,"sawtooth",.10,{cutoff:4200,cutoffEnd:500});voice(1700,420,.07,"square",.055);noise(.07,.045,{cutoff:1600});},
   hit:()=>{voice(190,55,.18,"sawtooth",.14,{cutoff:1300,cutoffEnd:250});voice(95,45,.22,"square",.07);noise(.12,.075,{cutoff:420});},
   coin:()=>{voice(740,740,.09,"square",.09,{cutoff:3600});voice(1110,1110,.12,"triangle",.08,{delay:.065});voice(1480,1480,.16,"sine",.045,{delay:.12});},
+  heal:()=>{[523.25,659.25,783.99].forEach((f,i)=>voice(f,f*1.01,.24,"sine",.08,{delay:i*.07,attack:.02}));},
+  maxHp:()=>{[392,523.25,659.25,783.99].forEach((f,i)=>voice(f,f*1.015,.34,"triangle",.085,{delay:i*.075,attack:.025}));},
+  star:()=>{[523.25,659.25,783.99,1046.5,1318.5].forEach((f,i)=>voice(f,f*1.02,.28,"square",.065,{delay:i*.055,cutoff:4800}));},
+  enemyShot:()=>{voice(360,115,.16,"sawtooth",.055,{cutoff:1800,cutoffEnd:350});noise(.055,.025,{cutoff:2100});},
   clear:()=>{
     [523.25,659.25,783.99,1046.5].forEach((f,i)=>{
       voice(f,f,.28,"triangle",.10,{delay:i*.105,bus:sfxBus});
@@ -204,15 +223,21 @@ const baseLevel = {
 const themes=[
  {name:"はじまりの草原",sky:["#84d6f4","#fce3b5","#efd1a3"],mountains:["#bbc5dc","#8aa7bb"],grass:"#8bce86",dirt:"#ba8560",accent:"#8b49ff",notes:[261.63,329.63,392,523.25,440,392,329.63,293.66]},
  {name:"夕焼けの遺跡",sky:["#aa95db","#ffc6aa","#efad87"],mountains:["#ba91bc","#88799d"],grass:"#e5b578",dirt:"#9b7180",accent:"#e88d70",notes:[293.66,349.23,440,587.33,523.25,440,349.23,329.63]},
- {name:"星あかりの森",sky:["#24294f","#52678f","#8a99af"],mountains:["#556582","#3e536d"],grass:"#79c6b3",dirt:"#69758b",accent:"#83e3d7",notes:[261.63,311.13,392,523.25,466.16,392,311.13,349.23]}
+ {name:"星あかりの森",sky:["#24294f","#52678f","#8a99af"],mountains:["#556582","#3e536d"],grass:"#79c6b3",dirt:"#69758b",accent:"#83e3d7",notes:[261.63,311.13,392,523.25,466.16,392,311.13,349.23]},
+ {name:"紅蓮の峡谷",sky:["#471f3b","#b94b52","#f4a261"],mountains:["#743c4e","#4e3044"],grass:"#d97855",dirt:"#794554",accent:"#ffcf70",notes:[293.66,369.99,440,587.33,493.88,440,369.99,329.63]},
+ {name:"次元の最深部",sky:["#100d2e","#342768","#74578c"],mountains:["#3c3263","#211c48"],grass:"#8c7bd6",dirt:"#51496e",accent:"#ff6f91",notes:[246.94,311.13,369.99,493.88,415.30,369.99,311.13,277.18]}
 ];
 function buildLevel(index){
- const offsets=[0,65,-45];
+ const offsets=[0,65,-45,85,-70];
  const platforms=baseLevel.platforms.map((p,i)=>({...p,...(i>=5?{x:p.x+offsets[index],y:p.y-(index===2?20:0)}:{})}));
  const coins=baseLevel.coins.map(c=>({...c,x:c.x+offsets[index],y:c.y-(index===2?20:0)}));
  const enemySpawns=baseLevel.enemySpawns.map((e,i)=>({...e,type:index===0?"walker":i%3===1?"flyer":i%3===2?"hopper":"walker"}));
  if(index>0)enemySpawns.push({x:1550,y:320,type:"flyer"},{x:4350,y:FLOOR_Y,type:"hopper"});
- return {platforms,coins,enemySpawns,goalX:baseLevel.goalX};
+ if(index>=3)enemySpawns.push({x:2850,y:FLOOR_Y,type:"walker"});
+ const heartPositions=[[2780,410],[2310,265],[3650,255],[1700,410],[3970,410]];
+ const [heartX,heartY]=heartPositions[index];
+ const hearts=[{x:heartX+offsets[index],y:heartY,taken:false}];
+ return {platforms,coins,hearts,enemySpawns,goalX:baseLevel.goalX};
 }
 let level=buildLevel(0);
 function setMode(next){
@@ -221,18 +246,39 @@ function setMode(next){
  const title=document.getElementById("heading"),message=document.getElementById("message"),action=document.getElementById("action");
  document.getElementById("retry").hidden=next!=="clear";
  if(next==="paused"){title.textContent="ちょっと休憩";message.textContent="準備ができたら、冒険の続きを。";action.textContent="つづける";}
- if(next==="dead"){title.textContent="もう一度、いこう！";message.textContent="コツは近づいて撃つこと。踏みつけも使えるよ。";action.textContent="リトライ";}
- if(next==="clear"){title.textContent=stageIndex===2?"冒険、コンプリート！":"STAGE CLEAR!";message.textContent=`${themes[stageIndex].name} · いぼ ${player.score} / ${level.coins.length}`;action.textContent=stageIndex===2?"最初から遊ぶ":"次のステージへ";}
+ if(next==="dead"){title.textContent="もう一度、いこう！";message.textContent="リトライはステージ1から。Cキーならこのステージから再開できます（IBOは0）。";action.textContent="ステージ1から";}
+ if(next==="clear"){title.textContent=stageIndex===STAGE_COUNT-1?"冒険、コンプリート！":"STAGE CLEAR!";message.textContent=`${themes[stageIndex].name} · いぼ ${player.score} / ${level.coins.length}`;action.textContent=stageIndex===STAGE_COUNT-1?"最初から遊ぶ":"次のステージへ";}
 }
 function togglePause(){if(mode==="playing")setMode("paused");else if(mode==="paused")setMode("playing");}
+function startFromStageOne(){
+ stageIndex=0;totalIbo=0;stageStartIbo=0;runMaxHp=3;starMilestones.clear();resetLevel();setMode("playing");
+}
+function restartCurrentStage(){
+ totalIbo=0;stageStartIbo=0;starMilestones.clear();resetLevel();setMode("playing");
+}
 document.getElementById("pause").onclick=togglePause;
-document.getElementById("action").onclick=()=>{audio();if(mode==="clear")stageIndex=(stageIndex+1)%3;if(mode!=="paused")resetLevel();setMode("playing");};
-document.getElementById("retry").onclick=()=>{resetLevel();setMode("playing");};
+document.getElementById("action").onclick=()=>{
+ audio();const previousMode=mode;
+ if(previousMode==="paused"){setMode("playing");return;}
+ if(previousMode==="clear"&&stageIndex<STAGE_COUNT-1){stageIndex++;stageStartIbo=totalIbo;resetLevel();setMode("playing");return;}
+ startFromStageOne();
+};
+document.getElementById("retry").onclick=startFromStageOne;
 document.getElementById("sound").onclick=()=>{muted=!muted;audio();master?.gain.setValueAtTime(muted?0:MASTER_VOLUME,ac.currentTime);document.getElementById("sound").textContent=muted?"音 OFF":"音 ON";document.getElementById("sound").setAttribute("aria-pressed",String(!muted));};
 document.getElementById("fullscreen").onclick=async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await document.getElementById("wrap").requestFullscreen();}catch{document.getElementById("status").textContent="このブラウザでは全画面表示に対応していません";}};
 document.addEventListener("fullscreenchange",()=>{document.getElementById("fullscreen").textContent=document.fullscreenElement?"全画面終了":"全画面";});
 function updateMusic(dt){
  if(muted)return;musicTimer-=dt;if(musicTimer>0)return;
+ if(player.starTime>0){
+   musicTimer=95;
+   const starNotes=[523.25,659.25,783.99,1046.5,783.99,659.25,880,1046.5],step=musicStep%16;
+   const f=starNotes[musicStep%starNotes.length];
+   voice(f,f*1.005,.13,"square",.045,{cutoff:5200,bus:musicBus});
+   if(step%2===0)voice(step%4===0?130.81:196,step%4===0?130.81:196,.18,"triangle",.06,{cutoff:1100,bus:musicBus});
+   if(step%2===1)noise(.035,.025,{cutoff:5200,bus:musicBus});
+   if(step%4===0)voice(105,48,.10,"sine",.075,{cutoff:420,bus:musicBus});
+   musicStep++;return;
+ }
  musicTimer=170;
  const notes=themes[stageIndex].notes,step=musicStep%16;
  // Lead melody: slight octave lift and deliberate rests keep the loop breathable.
@@ -259,23 +305,40 @@ function updateMusic(dt){
 const player = {
   x:120,y:380,w:42,h:78,vx:0,vy:0,
   speed:4.8,jump:-14.5,onGround:false,facing:1,
-  hp:3, inv:0, shotCd:0, score:0, dead:false, clear:false
+  hp:3, maxHp:3, inv:0, starTime:0, shotCd:0, score:0, dead:false, clear:false
 };
 
-let enemies=[], shots=[], particles=[], cameraX=0, last=0, clearPlayed=false;
+let enemies=[], shots=[], enemyShots=[], powerups=[], particles=[], cameraX=0, last=0, clearPlayed=false;
 
+function beamTuning(stage){
+  return [
+    {speed:0,cooldown:Infinity,variance:0},
+    {speed:4.5,cooldown:2800,variance:900},
+    {speed:4.8,cooldown:2500,variance:850},
+    {speed:5.2,cooldown:2200,variance:750},
+    {speed:7.2,cooldown:980,variance:650}
+  ][stage];
+}
+function enemyCanShoot(type,stage=stageIndex){
+  if(stage===1)return type==="hopper";
+  if(stage===2)return type==="hopper"||type==="flyer";
+  return stage>=3;
+}
 function makeEnemy(s) {
+  const beam=beamTuning(stageIndex);
   return {
     type:s.type||"walker", phase:s.x*.01, hopTimer:900+s.x%500,
+    beamCd:Number.isFinite(beam.cooldown)?beam.cooldown*.75+s.x%beam.variance:Infinity,
     x:s.x,y:s.type==="flyer"?s.y-105:s.y,w:42,h:72,vx:-1.0,vy:0,onGround:false,
     facing:-1, alive:true, hp:1, minX:s.x-120,maxX:s.x+120
   };
 }
 function resetLevel() {
+  totalIbo=stageStartIbo;
   level=buildLevel(stageIndex);musicTimer=0;musicStep=0;
-  Object.assign(player,{x:120,y:380,vx:0,vy:0,onGround:false,facing:1,hp:3,inv:0,shotCd:0,score:0,dead:false,clear:false,_jumpLatch:false,_shotLatch:false,coyote:0,jumpBuffer:0,safeX:120,safeY:FLOOR_Y,recoil:0});
+  Object.assign(player,{x:120,y:380,vx:0,vy:0,onGround:false,facing:1,hp:runMaxHp,maxHp:runMaxHp,inv:0,starTime:0,shotCd:0,score:0,dead:false,clear:false,_jumpLatch:false,_shotLatch:false,coyote:0,jumpBuffer:0,safeX:120,safeY:FLOOR_Y,recoil:0});
   enemies=level.enemySpawns.map(makeEnemy);
-  shots=[]; particles=[]; cameraX=0; clearPlayed=false;
+  shots=[]; enemyShots=[]; powerups=[]; particles=[]; cameraX=0; clearPlayed=false;
   level.coins.forEach(c=>c.taken=false);
 }
 resetLevel();
@@ -319,10 +382,13 @@ function update(dt) {
     return;
   }
 
+  const hadStar=player.starTime>0;
+  player.starTime=Math.max(0,player.starTime-dt);
+  if(hadStar&&player.starTime===0){musicTimer=0;musicStep=0;}
   updateMusic(dt);
   player.recoil=Math.max(0,player.recoil-dt);
   player.coyote=player.onGround?100:Math.max(0,player.coyote-dt);
-  const jumpHeld=keys[" "]||keys["w"];
+  const jumpHeld=keys[" "]||keys["x"];
   if(jumpHeld&&!player._jumpLatch)player.jumpBuffer=120;
   else player.jumpBuffer=Math.max(0,player.jumpBuffer-dt);
   player._jumpLatch=!!jumpHeld;
@@ -336,12 +402,12 @@ function update(dt) {
 
   if(player.jumpBuffer>0 && player.coyote>0){player.vy=player.jump;player.onGround=false;player.coyote=0;player.jumpBuffer=0;sfx.jump();spawnBurst(player.x,player.y,"#ffffff",5);}
 
-  if ((keys["i"]||keys["j"]) && player.shotCd<=0 && !player._shotLatch) {
+  if ((keys["i"]||keys["z"]) && player.shotCd<=0 && !player._shotLatch) {
     player.shotCd=280; player._shotLatch=true;player.recoil=130;
     shots.push({x:player.x+player.facing*34,y:player.y-42,vx:player.facing*8.5,r:7,alive:true,distance:0});
     sfx.shot();
   }
-  if (!(keys["i"]||keys["j"])) player._shotLatch=false;
+  if (!(keys["i"]||keys["z"])) player._shotLatch=false;
 
   moveAndCollide(player,f,level.platforms);
   player.x=clamp(player.x,30,WORLD_W-30);
@@ -355,8 +421,36 @@ function update(dt) {
   for(const c of level.coins){
     if(c.taken) continue;
     const dx=player.x-c.x, dy=(player.y-player.h/2)-c.y;
-    if(dx*dx+dy*dy<28*28){ c.taken=true; player.score++; sfx.coin(); spawnBurst(c.x,c.y,"#ffd84d",6); }
+    if(dx*dx+dy*dy<28*28){
+      c.taken=true;player.score++;totalIbo++;saveHighScore();sfx.coin();spawnBurst(c.x,c.y,"#ffd84d",6);
+      if(totalIbo%10===0&&!starMilestones.has(totalIbo)){
+        starMilestones.add(totalIbo);
+        if(Math.random()<.5)powerups.push({type:"star",x:clamp(c.x+player.facing*100,45,WORLD_W-45),y:Math.max(90,c.y-25),alive:true});
+      }
+      if(Math.random()<.01)powerups.push({type:"maxHeart",x:clamp(c.x+player.facing*135,45,WORLD_W-45),y:Math.max(90,c.y-38),alive:true});
+    }
   }
+
+  // Hearts remain on the map while HP is full, so healing is never wasted.
+  for(const heart of level.hearts){
+    if(heart.taken||player.hp>=player.maxHp)continue;
+    const dx=player.x-heart.x,dy=(player.y-player.h/2)-heart.y;
+    if(dx*dx+dy*dy<32*32){heart.taken=true;player.hp++;sfx.heal();spawnBurst(heart.x,heart.y,"#ff7895",14);}
+  }
+
+  for(const item of powerups){
+    if(!item.alive)continue;
+    const dx=player.x-item.x,dy=(player.y-player.h/2)-item.y;
+    if(dx*dx+dy*dy<34*34){
+      item.alive=false;
+      if(item.type==="maxHeart"){
+        runMaxHp++;player.maxHp=runMaxHp;player.hp=player.maxHp;sfx.maxHp();spawnBurst(item.x,item.y,"#ff4f78",26);
+      }else{
+        player.starTime=8000;player.inv=0;musicTimer=0;musicStep=0;sfx.star();spawnBurst(item.x,item.y,"#ffe45e",22);
+      }
+    }
+  }
+  powerups=powerups.filter(powerup=>powerup.alive);
 
   // enemies
   for(const e of enemies){
@@ -374,6 +468,15 @@ function update(dt) {
       if(e.type==="hopper"){e.hopTimer-=dt;if(e.onGround&&e.hopTimer<=0){e.vy=-10;e.hopTimer=1400;}}
       if(e.onGround&&!level.platforms.some(p=>Math.abs(p.y-e.y)<3&&e.x+Math.sign(e.vx)*28>=p.x&&e.x+Math.sign(e.vx)*28<=p.x+p.w))e.vx*=-1;
       moveAndCollide(e,f,level.platforms);
+    }
+    if(enemyCanShoot(e.type)){
+      e.beamCd-=dt;
+      const dx=player.x-e.x,dy=(player.y-player.h*.55)-(e.y-58),distance=Math.hypot(dx,dy);
+      if(e.beamCd<=0&&distance>120&&distance<620){
+        const beam=beamTuning(stageIndex),speed=beam.speed;
+        enemyShots.push({x:e.x+e.facing*16,y:e.y-58,vx:dx/distance*speed,vy:dy/distance*speed,r:5,distance:0,alive:true});
+        e.beamCd=beam.cooldown+Math.random()*beam.variance;sfx.enemyShot();
+      }
     }
     const pr=standingRect(player), er=standingRect(e);
     if(intersect(pr,er) && player.inv<=0){
@@ -401,6 +504,16 @@ function update(dt) {
     for(const s of shots)if(s.alive&&s.distance>=SHOT_RANGE){s.alive=false;spawnBurst(s.x,s.y,"#cdb3ff",4);}
   shots=shots.filter(s=>s.alive);
 
+  // Enemy head beams start in stage 3 and become faster/more frequent later.
+  for(const beam of enemyShots){
+    if(!beam.alive)continue;
+    beam.x+=beam.vx*f;beam.y+=beam.vy*f;beam.distance+=Math.hypot(beam.vx*f,beam.vy*f);
+    const br={x:beam.x-beam.r,y:beam.y-beam.r,w:beam.r*2,h:beam.r*2};
+    if(beam.distance>720||level.platforms.some(p=>intersect(br,p))){beam.alive=false;continue;}
+    if(intersect(br,standingRect(player))){beam.alive=false;hurtPlayer(false);}
+  }
+  enemyShots=enemyShots.filter(beam=>beam.alive);
+
   if (player.x>level.goalX) {
     player.clear=true;setMode("clear");
     if(!clearPlayed){clearPlayed=true; sfx.clear();}
@@ -414,7 +527,9 @@ function update(dt) {
 }
 
 function hurtPlayer(fall){
-  if(player.dead || (!fall&&player.inv>0))return;
+  if(player.dead)return;
+  if(player.starTime>0){if(fall){player.x=player.safeX;player.y=player.safeY;player.vx=0;player.vy=0;}return;}
+  if(!fall&&player.inv>0)return;
   player.hp--;sfx.hit();spawnBurst(player.x,player.y-40,"#ff89a4",14);
   if(player.hp<=0){player.dead=true;setMode("dead");return;}
   player.inv=1200;
@@ -432,6 +547,9 @@ function spriteFrame(o,isEnemy){
   const moving=Math.abs(o.vx)>.25;
   return moving?2+(Math.floor(performance.now()/115)%4):Math.floor(performance.now()/520)%2;
 }
+function playerIsGold(){
+  return player.starTime>0&&(player.starTime>1000||Math.floor((1000-player.starTime)/50)%2===1);
+}
 function drawSprite(o,isEnemy=false){
   const frame=SPRITE_TILES[isEnemy?1:0][spriteFrame(o,isEnemy)];
   const nativeFacing=isEnemy?-1:1;
@@ -446,8 +564,10 @@ function drawSprite(o,isEnemy=false){
   if(o===player && player.recoil>0)ctx.rotate(-player.facing*.08*player.recoil/130);
   if(player.inv>0 && o===player && Math.floor(performance.now()/70)%2===0) ctx.globalAlpha=.35;
   if(flip) ctx.scale(-1,1);
+  const starGold=o===player&&playerIsGold();
+  if(starGold)ctx.filter="sepia(1) saturate(7) hue-rotate(355deg) brightness(1.45)";
   if(atlasReady) ctx.drawImage(atlas,frame.x,frame.y,frame.w,frame.h,-drawW/2,-drawH,drawW,drawH);
-  else {ctx.fillStyle=isEnemy?"#f5d3a5":"#b673ff"; ctx.fillRect(-20,-70,40,70);}
+  else {ctx.fillStyle=isEnemy?"#f5d3a5":starGold?"#ffd84d":"#b673ff"; ctx.fillRect(-20,-70,40,70);}
   ctx.restore();
 }
 
@@ -520,6 +640,36 @@ function drawCoins(){
     ctx.beginPath(); ctx.ellipse(x,c.y,8*pulse,12,0,0,Math.PI*2); ctx.fill(); ctx.stroke();
   }
 }
+function drawHearts(){
+  for(const heart of level.hearts){
+    if(heart.taken)continue;
+    const x=heart.x-cameraX,y=heart.y+Math.sin(performance.now()/210+heart.x)*5;
+    if(x<-35||x>W+35)continue;
+    ctx.save();ctx.translate(x,y);ctx.shadowColor="#ff416d";ctx.shadowBlur=14;
+    ctx.fillStyle="#ff6688";ctx.strokeStyle="#fff0f4";ctx.lineWidth=3;ctx.beginPath();
+    ctx.moveTo(0,15);ctx.bezierCurveTo(-24,1,-20,-17,-8,-17);ctx.bezierCurveTo(-2,-17,0,-12,0,-8);
+    ctx.bezierCurveTo(0,-12,2,-17,8,-17);ctx.bezierCurveTo(20,-17,24,1,0,15);ctx.fill();ctx.stroke();ctx.restore();
+  }
+}
+function drawPowerups(){
+  for(const item of powerups){
+    const x=item.x-cameraX,y=item.y+Math.sin(performance.now()/130+item.x)*6;
+    if(x<-40||x>W+40)continue;
+    ctx.save();ctx.translate(x,y);
+    if(item.type==="maxHeart"){
+      ctx.scale(1.35,1.35);ctx.shadowColor="#ff2858";ctx.shadowBlur=22;ctx.fillStyle="#ff416d";ctx.strokeStyle="#fff";ctx.lineWidth=2.5;ctx.beginPath();
+      ctx.moveTo(0,15);ctx.bezierCurveTo(-24,1,-20,-17,-8,-17);ctx.bezierCurveTo(-2,-17,0,-12,0,-8);ctx.bezierCurveTo(0,-12,2,-17,8,-17);ctx.bezierCurveTo(20,-17,24,1,0,15);ctx.fill();ctx.stroke();
+      ctx.fillStyle="#fff";ctx.fillRect(-2,-11,4,15);ctx.fillRect(-7,-6,14,4);ctx.restore();continue;
+    }
+    ctx.rotate(performance.now()/650);ctx.shadowColor="#ffd52b";ctx.shadowBlur=20;
+    ctx.fillStyle="#ffe45e";ctx.strokeStyle="#fff8bd";ctx.lineWidth=3;ctx.beginPath();
+    for(let i=0;i<10;i++){
+      const angle=-Math.PI/2+i*Math.PI/5,r=i%2===0?18:8;
+      const px=Math.cos(angle)*r,py=Math.sin(angle)*r;i?ctx.lineTo(px,py):ctx.moveTo(px,py);
+    }
+    ctx.closePath();ctx.fill();ctx.stroke();ctx.restore();
+  }
+}
 function drawGoal(){
   const x=level.goalX-cameraX;
   if(x<-100||x>W+100) return;
@@ -535,6 +685,14 @@ function drawShots(){
     ctx.beginPath(); ctx.arc(x,s.y,s.r,0,Math.PI*2); ctx.fill(); ctx.stroke();ctx.shadowBlur=0;
   }
 }
+function drawEnemyShots(){
+  for(const beam of enemyShots){
+    const x=beam.x-cameraX,angle=Math.atan2(beam.vy,beam.vx);
+    ctx.save();ctx.translate(x,beam.y);ctx.rotate(angle);ctx.shadowColor="#ff1f35";ctx.shadowBlur=18;
+    const glow=ctx.createLinearGradient(-26,0,10,0);glow.addColorStop(0,"#ff203000");glow.addColorStop(1,"#ff2030ee");
+    ctx.fillStyle=glow;ctx.fillRect(-28,-4,36,8);ctx.fillStyle="#fff2f2";ctx.fillRect(-5,-2,13,4);ctx.restore();
+  }
+}
 function drawParticles(){
   for(const p of particles){
     ctx.globalAlpha=Math.max(0,Math.min(1,p.life/500));
@@ -545,14 +703,15 @@ function drawParticles(){
 function drawUI(){
   ctx.fillStyle="rgba(0,0,0,.35)"; ctx.fillRect(16,16,300,72);
   ctx.fillStyle="#fff"; ctx.font="bold 20px Yu Gothic";
-  ctx.fillText(`HP ${"♥".repeat(player.hp)}${"♡".repeat(3-player.hp)}`,28,43);
-  ctx.fillText(`IBO ${String(player.score).padStart(2,"0")}/${level.coins.length}`,28,72);
+  ctx.fillText(`HP ${"♥".repeat(player.hp)}${"♡".repeat(player.maxHp-player.hp)}`,28,43);
+  ctx.fillText(`IBO ${String(totalIbo).padStart(3,"0")}  BEST ${String(highScore).padStart(3,"0")}`,28,72);
   const progress=Math.round(player.x/level.goalX*100);
   ctx.fillStyle="rgba(255,255,255,.28)"; ctx.fillRect(340,26,300,12);
   ctx.fillStyle="#8b49ff"; ctx.fillRect(340,26,300*clamp(progress/100,0,1),12);
   ctx.fillStyle="#fff"; ctx.font="14px Yu Gothic"; ctx.fillText(`${progress}%`,650,38);
 
-  ctx.textAlign="right";ctx.font="bold 15px system-ui";ctx.fillStyle="#fff";ctx.fillText(`${stageIndex+1} / 3 · ${themes[stageIndex].name}`,W-24,34);ctx.textAlign="left";
+  ctx.textAlign="right";ctx.font="bold 15px system-ui";ctx.fillStyle="#fff";ctx.fillText(`${stageIndex+1} / ${STAGE_COUNT} · ${themes[stageIndex].name}`,W-24,34);ctx.textAlign="left";
+  if(player.starTime>0){ctx.textAlign="right";ctx.fillStyle="#ffe45e";ctx.fillText(`★ ${Math.ceil(player.starTime/1000)}s`,W-24,62);ctx.textAlign="left";}
 
 }
 
@@ -560,10 +719,13 @@ function render(){
   drawBackground();
   drawPlatforms();
   drawCoins();
+  drawHearts();
+  drawPowerups();
   drawGoal();
   for(const e of enemies) if(e.alive) drawSprite(e,true);
   drawSprite(player,false);
   drawShots();
+  drawEnemyShots();
   drawParticles();
   drawUI();
 }
