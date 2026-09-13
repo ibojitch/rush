@@ -7,9 +7,11 @@ function el(id){if(!elements.has(id))elements.set(id,{width:960,height:540,hidde
 const sandbox={console,Math,performance:{now:()=>1000},setTimeout:()=>0,requestAnimationFrame:()=>0,Image:class{},addEventListener(){},document:{getElementById:el,addEventListener(){},querySelectorAll:()=>[]},window:{}};
 vm.createContext(sandbox);vm.runInContext(code,sandbox);
 function run(code){return vm.runInContext(code,sandbox)}
-run('atlasReady=true;atlas.naturalWidth=1774;atlas.naturalHeight=887;mode="playing";');
-assert.equal(run('SPRITE_FRAMES.flat().length'),16);run('render()');
-for(const f of run('SPRITE_FRAMES.flat()')){assert(f.w>100&&f.h>150);assert(f.x+f.w<=1774&&f.y+f.h<=887)}
+run('atlasReady=true;atlas.naturalWidth=1280;atlas.naturalHeight=456;mode="playing";');
+assert.equal(run('SPRITE_TILES.flat().length'),16);
+assert.equal(run('new Set(SPRITE_TILES.flat().map(f=>f.name)).size'),16);
+assert.equal(run('SPRITE_ATLAS.width'),1280);assert.equal(run('SPRITE_ATLAS.height'),456);run('render()');
+for(const f of run('SPRITE_TILES.flat()')){assert(f.w>100&&f.h>150);assert(f.x>=0&&f.y>=0);assert(f.x+f.w<=1280&&f.y+f.h<=456)}
 for(const facing of [-1,1]){
  run(`resetLevel();mode="playing";player.x=500;player.y=455;player.onGround=true;player.facing=${facing};keys.i=true;update(16.6667);keys.i=false;var bullet=shots[0];var origin=bullet.x-bullet.vx;var n=0;while(bullet.alive&&n++<100)update(16.6667);`);
  assert.equal(run('bullet.distance'),384);assert(Math.abs(run('Math.abs(bullet.x-origin)')-384)<.01);
