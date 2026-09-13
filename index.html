@@ -243,11 +243,15 @@ let level=buildLevel(0);
 function setMode(next){
  mode=next;clearKeys();const overlay=document.getElementById("overlay");overlay.hidden=next==="playing";
  document.getElementById("pause").textContent=next==="paused"?"再開":"一時停止";
- const title=document.getElementById("heading"),message=document.getElementById("message"),action=document.getElementById("action");
- document.getElementById("retry").hidden=next!=="clear";
+ const title=document.getElementById("heading"),message=document.getElementById("message"),action=document.getElementById("action"),retry=document.getElementById("retry");
+ retry.hidden=next!=="clear"&&!(next==="dead"&&stageIndex>0);
  if(next==="paused"){title.textContent="ちょっと休憩";message.textContent="準備ができたら、冒険の続きを。";action.textContent="つづける";}
- if(next==="dead"){title.textContent="もう一度、いこう！";message.textContent="リトライはステージ1から。Cキーならこのステージから再開できます（IBOは0）。";action.textContent="ステージ1から";}
- if(next==="clear"){title.textContent=stageIndex===STAGE_COUNT-1?"冒険、コンプリート！":"STAGE CLEAR!";message.textContent=`${themes[stageIndex].name} · いぼ ${player.score} / ${level.coins.length}`;action.textContent=stageIndex===STAGE_COUNT-1?"最初から遊ぶ":"次のステージへ";}
+ if(next==="dead"){
+   title.textContent="もう一度、いこう！";action.textContent="ステージ1から";
+   message.textContent=stageIndex>0?"ステージ1からリトライするか、IBO 0でこのステージからコンティニューできます。":"ステージ1からリトライします。";
+   retry.textContent="コンティニュー";
+ }
+ if(next==="clear"){title.textContent=stageIndex===STAGE_COUNT-1?"冒険、コンプリート！":"STAGE CLEAR!";message.textContent=`${themes[stageIndex].name} · いぼ ${player.score} / ${level.coins.length}`;action.textContent=stageIndex===STAGE_COUNT-1?"最初から遊ぶ":"次のステージへ";retry.textContent="ステージ1から";}
 }
 function togglePause(){if(mode==="playing")setMode("paused");else if(mode==="paused")setMode("playing");}
 function startFromStageOne(){
@@ -263,7 +267,7 @@ document.getElementById("action").onclick=()=>{
  if(previousMode==="clear"&&stageIndex<STAGE_COUNT-1){stageIndex++;stageStartIbo=totalIbo;resetLevel();setMode("playing");return;}
  startFromStageOne();
 };
-document.getElementById("retry").onclick=startFromStageOne;
+document.getElementById("retry").onclick=()=>mode==="dead"&&stageIndex>0?restartCurrentStage():startFromStageOne();
 document.getElementById("sound").onclick=()=>{muted=!muted;audio();master?.gain.setValueAtTime(muted?0:MASTER_VOLUME,ac.currentTime);document.getElementById("sound").textContent=muted?"音 OFF":"音 ON";document.getElementById("sound").setAttribute("aria-pressed",String(!muted));};
 document.getElementById("fullscreen").onclick=async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await document.getElementById("wrap").requestFullscreen();}catch{document.getElementById("status").textContent="このブラウザでは全画面表示に対応していません";}};
 document.addEventListener("fullscreenchange",()=>{document.getElementById("fullscreen").textContent=document.fullscreenElement?"全画面終了":"全画面";});

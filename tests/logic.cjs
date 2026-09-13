@@ -36,6 +36,8 @@ run('stageIndex=0;resetLevel();mode="playing";enemies=[];totalIbo=9;player.score
 run('const star=powerups.find(p=>p.type==="star");player.x=star.x;player.y=star.y+player.h/2;update(0)');assert.equal(run('player.starTime'),8000);const hp=run('player.hp');run('hurtPlayer(false)');assert.equal(run('player.hp'),hp);run('player.starTime=975');assert.equal(run('playerIsGold()'),false);run('player.starTime=925');assert.equal(run('playerIsGold()'),true);
 run('const bigHeart=powerups.find(p=>p.type==="maxHeart");player.hp=1;player.x=bigHeart.x;player.y=bigHeart.y+player.h/2;update(0)');assert.equal(run('player.maxHp'),4);assert.equal(run('player.hp'),4);assert.equal(run('runMaxHp'),4);
 run('stageIndex=3;totalIbo=27;stageStartIbo=20;runMaxHp=4;mode="dead"');handlers.keydown.forEach(fn=>fn({key:'c',repeat:false,preventDefault(){}}));assert.equal(run('stageIndex'),3);assert.equal(run('totalIbo'),0);assert.equal(run('player.maxHp'),4);
+run('stageIndex=0;mode="dead";setMode("dead")');assert.equal(el('retry').hidden,true);
+run('stageIndex=2;totalIbo=18;stageStartIbo=12;runMaxHp=4;mode="dead";setMode("dead")');assert.equal(el('retry').hidden,false);assert.equal(el('retry').textContent,'コンティニュー');el('retry').click();assert.equal(run('stageIndex'),2);assert.equal(run('totalIbo'),0);assert.equal(run('mode'),'playing');assert.equal(run('player.maxHp'),4);
 run('stageIndex=3;totalIbo=27;stageStartIbo=20;runMaxHp=4;mode="playing"');handlers.keydown.forEach(fn=>fn({key:'r',repeat:false,preventDefault(){}}));assert.equal(run('stageIndex'),0);assert.equal(run('totalIbo'),0);assert.equal(run('player.maxHp'),3);
 // All intended jumps fit the player's maximum rise. Reachability of the primary route.
 run('stageIndex=0;resetLevel();mode="playing";player.y=455;player.onGround=true;keys.arrowright=true');
@@ -44,7 +46,7 @@ let finished=false;for(let i=0;i<1800;i++){
  run(`keys[' ']=${jump};keys.i=${i%20===0};update(16.6667)`);
  if(run('player.clear')){finished=true;break;}if(run('player.dead'))break;
 }console.log({mainRouteCompleted:finished,hp:run('player.hp'),x:run('player.x')});assert(finished);
-console.log('PASS: syntax, controls, stage-1 retry/current-stage C continue, 5-stage progression, cumulative/high score, enemy beams, normal/max-HP hearts, star spawn/invincibility/blink, pause, main route');
+console.log('PASS: syntax, controls, stage-1 retry, C/button continue from stage 2+, 5-stage progression, cumulative/high score, enemy beams, hearts, star power, pause, main route');
 
 
 
