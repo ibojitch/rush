@@ -36,8 +36,8 @@ run('dropKoeItem(shooter)');assert.equal(run('koeItemState'),'dropped');assert.e
 run('const koe=powerups.find(p=>p.type==="koe");player.x=koe.x;player.y=koe.y+player.h/2;update(0)');assert.equal(run('koeItemState'),'collected');
 run('stageIndex=2;resetLevel()');assert.equal(run('koeItemState'),'collected');
 run('restartCurrentStage()');assert.equal(run('koeItemState'),'collected');
-run('mode="playing";player.facing=1;voiceAttacks=[];fireVoiceAttack("p");var shortVoice=voiceAttacks[0];fireVoiceAttack("v")');assert.equal(run('shortVoice.text'),'プ');assert(run('shortVoice.vx<0'));assert.equal(run('voiceAttacks.length'),1);
-run('voiceAttacks=[];fireVoiceAttack("v");var longVoice=voiceAttacks[0]');assert.equal(run('longVoice.text'),'ヴリヴリブー');assert(run('Math.abs(longVoice.vx)<Math.abs(shortVoice.vx)'));
+run('mode="playing";player.facing=1;voiceEnergy=100;voiceAttacks=[];fireVoiceAttack("p");var shortVoice=voiceAttacks[0];fireVoiceAttack("v")');assert.equal(run('shortVoice.text'),'プ');assert(run('shortVoice.vx<0'));assert.equal(run('voiceEnergy'),94);assert.equal(run('voiceAttacks.length'),1);
+run('voiceAttacks=[];fireVoiceAttack("v");var longVoice=voiceAttacks[0]');assert.equal(run('longVoice.text'),'ヴリヴリブー');assert(run('Math.abs(longVoice.vx)<Math.abs(shortVoice.vx)'));assert(run('longVoice.range>shortVoice.range'));
 run('startFromStageOne()');assert.equal(run('koeItemState'),'pending');
 run('stageIndex=0;resetLevel();mode="playing";enemies=[];player.hp=2;player.x=level.hearts[0].x;player.y=level.hearts[0].y+player.h/2;update(0)');assert.equal(run('player.hp'),3);assert(run('level.hearts[0].taken'));
 run('stageIndex=0;resetLevel();mode="playing";enemies=[];totalIbo=9;player.score=9;Math.random=()=>0;const coin=level.coins[0];player.x=coin.x;player.y=coin.y+player.h/2;update(0)');assert.equal(run('totalIbo'),10);assert.equal(run('highScore'),10);assert.equal(storage.get('ibojigen-rush-high-score'),'10');assert.equal(run('powerups.filter(p=>p.type==="star").length'),1);assert.equal(run('powerups.filter(p=>p.type==="maxHeart").length'),1);

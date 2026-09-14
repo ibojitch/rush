@@ -125,7 +125,13 @@ function bindHold(id,key){
 }
 bindHold("left","arrowleft"); bindHold("right","arrowright");
 bindHold("jump"," "); bindHold("shot","i");
-document.getElementById("voice").addEventListener("pointerdown",e=>{e.preventDefault();fireVoiceAttack();});
+function bindVoiceButton(){
+ const el=document.getElementById("voice");let pointer=null,start=0;
+ el.addEventListener("pointerdown",e=>{e.preventDefault();if(pointer!==null)return;pointer=e.pointerId;start=performance.now();el.setPointerCapture(pointer);el.classList.add("pressed");});
+ const release=e=>{if(e.pointerId!==pointer)return;const held=performance.now()-start;pointer=null;el.classList.remove("pressed");fireVoiceAttack(held<=100?"p":held<=250?"s":held<=500?"b":"v");};
+ el.addEventListener("pointerup",release);el.addEventListener("pointercancel",release);el.addEventListener("lostpointercapture",release);
+}
+bindVoiceButton();
 
 // ---- procedural music / sound effects ----
 // No external audio files: melody, bass, chords, drums and SFX are synthesised
@@ -260,7 +266,7 @@ function setMode(next){
 }
 function togglePause(){if(mode==="playing")setMode("paused");else if(mode==="paused")setMode("playing");}
 function startFromStageOne(){
-  stageIndex=0;totalIbo=0;stageStartIbo=0;runMaxHp=3;starMilestones.clear();koeItemState="pending";koeDropPosition=null;resetLevel();setMode("playing");
+  stageIndex=0;totalIbo=0;stageStartIbo=0;runMaxHp=3;starMilestones.clear();koeItemState="pending";koeDropPosition=null;voiceEnergy=100;resetLevel();setMode("playing");
 }
 function restartCurrentStage(){
  totalIbo=0;stageStartIbo=0;starMilestones.clear();resetLevel();setMode("playing");
@@ -319,20 +325,26 @@ const player = {
 
 let enemies=[], shots=[], voiceAttacks=[], enemyShots=[], powerups=[], particles=[], rings=[], cameraX=0, last=0, clearPlayed=false, screenShake=0, goalPulse=0;
 // This state belongs to one run, not one stage: a continue must never remove an item already earned.
-let koeItemState="pending", koeDropPosition=null, koeFirstShooterId=null, nextEnemyId=1;
+let koeItemState="pending", koeDropPosition=null, koeFirstShooterId=null, nextEnemyId=1, voiceEnergy=100;
 function emitKoeEvent(type,detail={}){
   if(typeof CustomEvent!=="undefined"&&window.dispatchEvent)window.dispatchEvent(new CustomEvent(`koe:item-${type}`,{detail}));
 }
-const VOICE_WORDS={p:"プ",b:"ブリブリ",s:"ス～",v:"ヴリヴリブー"};
+const VOICE_WORDS={p:{text:"プ",cost:6},s:{text:"ス～",cost:10},b:{text:"ブリブリ",cost:14},v:{text:"ヴリヴリブー",cost:20}};
+function syncVoiceUI(){
+ const el=document.getElementById("voice");el.hidden=koeItemState!=="collected";el.textContent=`声 ${voiceEnergy}`;el.disabled=koeItemState!=="collected"||voiceEnergy<6;
+}
 function fireVoiceAttack(key){
   if(mode!=="playing"||koeItemState!=="collected"||voiceAttacks.length)return;
-  const word=VOICE_WORDS[key]||VOICE_WORDS[["p","b","s","v"][Math.floor(Math.random()*4)]];
-  const letters=Array.from(word).length, direction=-player.facing;
+  const voice=VOICE_WORDS[key]||VOICE_WORDS[["p","s","b","v"][Math.floor(Math.random()*4)]];
+  if(voiceEnergy<voice.cost)return;
+  voiceEnergy-=voice.cost;syncVoiceUI();
+  const {text:word,cost}=voice,letters=Array.from(word).length,direction=-player.facing;
   // Longer calls linger in the world; all travel straight behind the hero.
   const speed=7.4/(1+(letters-1)*.16);
   // Lower the launch point from chest height to the hero's rear/hip height.
   const launchY=player.y-43+player.h*.5;
-  voiceAttacks.push({text:word,x:player.x+direction*38,y:launchY,vx:direction*speed,w:letters*32,h:52,alive:true});
+  // `x` is the rear edge next to the hero: right edge when flying left, left edge when flying right.
+  voiceAttacks.push({text:word,x:player.x+direction*38,y:launchY,vx:direction*speed,direction,w:letters*52,h:52,range:40+cost*70,travel:0,alive:true});
   spawnBurst(player.x+direction*30,launchY,"#ffe75a",8,.75);
 }
 
@@ -362,12 +374,12 @@ function makeEnemy(s) {
 function resetLevel() {
   totalIbo=stageStartIbo;
   level=buildLevel(stageIndex);musicTimer=0;musicStep=0;
-  Object.assign(player,{x:120,y:380,vx:0,vy:0,onGround:false,facing:1,hp:runMaxHp,maxHp:runMaxHp,inv:0,starTime:0,shotCd:0,score:0,dead:false,clear:false,_jumpLatch:false,_shotLatch:false,coyote:0,jumpBuffer:0,safeX:120,safeY:FLOOR_Y,recoil:0});
+  Object.assign(player,{x:120,y:380,vx:0,vy:0,onGround:false,facing:1,hp:runMaxHp,maxHp:runMaxHp,inv:0,starTime:0,shotCd:0,score:0,dead:false,clear:false,_jumpLatch:false,_shotLatch:false,coyote:0,jumpBuffer:0,airPeakY:380,safeX:120,safeY:FLOOR_Y,recoil:0});
   nextEnemyId=1;koeFirstShooterId=null;
   enemies=level.enemySpawns.map(makeEnemy);
   shots=[];voiceAttacks=[];enemyShots=[];powerups=[];particles=[];rings=[];cameraX=0;clearPlayed=false;screenShake=0;goalPulse=0;
   if(stageIndex===1&&koeItemState==="dropped"&&koeDropPosition)powerups.push({type:"koe",x:koeDropPosition.x,y:koeDropPosition.y,alive:true});
-  document.getElementById("voice").hidden=koeItemState!=="collected";
+  syncVoiceUI();
   level.coins.forEach(c=>c.taken=false);
 }
 resetLevel();
@@ -440,7 +452,11 @@ function update(dt) {
   if (Math.abs(player.vx)<.08) player.vx=0;
   if (player.vx!==0) player.facing=Math.sign(player.vx);
 
-  if(player.jumpBuffer>0 && player.coyote>0){player.vy=player.jump;player.onGround=false;player.coyote=0;player.jumpBuffer=0;sfx.jump();spawnBurst(player.x,player.y,"#ffffff",3,.45);}
+  if(player.jumpBuffer>0 && player.coyote>0){
+    player.vy=player.jump;player.onGround=false;player.airPeakY=player.y;player.coyote=0;player.jumpBuffer=0;sfx.jump();
+    // A low, warm dust puff plus a few bright sparks makes the take-off legible.
+    spawnBurst(player.x,player.y,"#c99a68",9,.75);spawnBurst(player.x,player.y,"#ffe4a6",4,.5);
+  }
 
   if ((keys["i"]||keys["z"]) && player.shotCd<=0 && !player._shotLatch) {
     player.shotCd=280; player._shotLatch=true;player.recoil=130;
@@ -452,8 +468,16 @@ function update(dt) {
   if (!(keys["i"]||keys["z"])) player._shotLatch=false;
 
   const wasGrounded=player.onGround;
+  if(!wasGrounded)player.airPeakY=Math.min(player.airPeakY??player.y,player.y);
   moveAndCollide(player,f,level.platforms);
-  if(!wasGrounded&&player.onGround&&player.vy===0)spawnBurst(player.x,player.y,"#fff2d2",3,.35);
+  if(!wasGrounded&&player.onGround&&player.vy===0){
+    const fallDistance=Math.max(0,player.y-(player.airPeakY??player.y));
+    const impact=clamp(.55+fallDistance/150,.55,2.1);
+    spawnBurst(player.x,player.y,"#c99a68",Math.round(7+impact*8),impact);
+    spawnBurst(player.x,player.y,"#fff0be",Math.round(2+impact*3),impact*.7);
+    screenShake=Math.max(screenShake,Math.max(0,impact-1)*3);
+    player.airPeakY=player.y;
+  }
   player.x=clamp(player.x,30,WORLD_W-30);
 
   if(player.onGround && level.platforms.some(p=>player.y===p.y&&player.x>p.x+35&&player.x<p.x+p.w-35)){player.safeX=player.x;player.safeY=player.y;}
@@ -466,7 +490,7 @@ function update(dt) {
     if(c.taken) continue;
     const dx=player.x-c.x, dy=(player.y-player.h/2)-c.y;
     if(dx*dx+dy*dy<28*28){
-      c.taken=true;player.score++;totalIbo++;saveHighScore();sfx.coin();spawnBurst(c.x,c.y,"#ffd84d",6);
+      c.taken=true;player.score++;totalIbo++;if(koeItemState==="collected"){voiceEnergy=Math.min(100,voiceEnergy+3);syncVoiceUI();}saveHighScore();sfx.coin();spawnBurst(c.x,c.y,"#ffd84d",6);
       if(totalIbo%10===0&&!starMilestones.has(totalIbo)){
         starMilestones.add(totalIbo);
         if(Math.random()<.5)powerups.push({type:"star",x:clamp(c.x+player.facing*100,45,WORLD_W-45),y:Math.max(90,c.y-25),alive:true});
@@ -488,7 +512,7 @@ function update(dt) {
     if(dx*dx+dy*dy<34*34){
       item.alive=false;
       if(item.type==="koe"){
-        koeItemState="collected";koeDropPosition=null;document.getElementById("voice").hidden=false;spawnBurst(item.x,item.y,"#c9f4ff",16,1.1);spawnRing(item.x,item.y,"#ff5d78",26);emitKoeEvent("collected",{stage:stageIndex+1});
+        koeItemState="collected";koeDropPosition=null;syncVoiceUI();spawnBurst(item.x,item.y,"#c9f4ff",16,1.1);spawnRing(item.x,item.y,"#ff5d78",26);emitKoeEvent("collected",{stage:stageIndex+1});
       }else if(item.type==="maxHeart"){
         runMaxHp++;player.maxHp=runMaxHp;player.hp=player.maxHp;sfx.maxHp();spawnBurst(item.x,item.y,"#ff4f78",26);
       }else{
@@ -556,14 +580,16 @@ function update(dt) {
   // Voice attacks have no world-range cap. They clear only after leaving the camera view or on impact.
   for(const voice of voiceAttacks){
     if(!voice.alive)continue;
-    voice.x+=voice.vx*f;
-    const vr={x:voice.x-voice.w/2,y:voice.y-voice.h,w:voice.w,h:voice.h};
+    const stepX=voice.vx*f,remaining=voice.range-voice.travel,moveX=Math.sign(stepX)*Math.min(Math.abs(stepX),remaining);
+    voice.x+=moveX;voice.travel+=Math.abs(moveX);
+    const vr={x:voice.direction<0?voice.x-voice.w:voice.x,y:voice.y-voice.h,w:voice.w,h:voice.h};
     const hitPlatform=level.platforms.some(p=>intersect(vr,p));
     let hitEnemy=false;
     for(const e of enemies)if(e.alive&&intersect(vr,standingRect(e))){e.alive=false;dropKoeItem(e);hitEnemy=true;break;}
     if(hitPlatform||hitEnemy){voice.alive=false;spawnBurst(voice.x,voice.y-24,"#ffe65a",18,1.45);spawnRing(voice.x,voice.y-24,"#ffe65a",22);continue;}
+    if(voice.travel>=voice.range){voice.alive=false;spawnBurst(voice.x,voice.y-24,"#ffe65a",12,1);continue;}
     const screenX=voice.x-cameraX;
-    if(screenX+voice.w/2<-20||screenX-voice.w/2>W+20)voice.alive=false;
+    if(voice.direction<0?screenX<-20:screenX>W+20)voice.alive=false;
   }
   voiceAttacks=voiceAttacks.filter(voice=>voice.alive);
 
@@ -779,7 +805,7 @@ function drawShots(){
 function drawVoiceAttacks(){
   for(const voice of voiceAttacks){
     const x=voice.x-cameraX;
-    ctx.save();ctx.font="bold 52px 'Yu Gothic', sans-serif";ctx.textAlign="center";ctx.textBaseline="middle";
+    ctx.save();ctx.font="bold 52px 'Yu Gothic', sans-serif";ctx.textAlign=voice.direction<0?"right":"left";ctx.textBaseline="middle";
     ctx.lineJoin="round";ctx.lineWidth=7;ctx.strokeStyle="#80531c";ctx.fillStyle="#ffe75a";ctx.shadowColor="#ffe75a";ctx.shadowBlur=11;
     ctx.strokeText(voice.text,x,voice.y-26);ctx.fillText(voice.text,x,voice.y-26);ctx.restore();
   }
@@ -806,7 +832,9 @@ function drawUI(){
   ctx.fillStyle="#fff"; ctx.font="bold 20px Yu Gothic";
   ctx.fillText(`HP ${"♥".repeat(player.hp)}${"♡".repeat(player.maxHp-player.hp)}`,28,43);
   ctx.fillText(`IBO ${String(totalIbo).padStart(3,"0")}  BEST ${String(highScore).padStart(3,"0")}`,28,72);
-  if(koeItemState==="collected"){ctx.fillStyle="#d9f8ff";ctx.font="bold 13px Yu Gothic";ctx.fillText("KOE × 1",28,95);}
+  if(koeItemState==="collected"){
+    ctx.fillStyle="#513f24";ctx.fillRect(28,88,126,8);ctx.fillStyle="#ffe75a";ctx.fillRect(28,88,126*voiceEnergy/100,8);ctx.fillStyle="#fff5bd";ctx.font="bold 13px Yu Gothic";ctx.fillText(`声 ${voiceEnergy}`,162,95);
+  }
   const progress=Math.round(player.x/level.goalX*100);
   ctx.fillStyle="rgba(255,255,255,.28)"; ctx.fillRect(340,26,300,12);
   ctx.fillStyle="#8b49ff"; ctx.fillRect(340,26,300*clamp(progress/100,0,1),12);
