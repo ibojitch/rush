@@ -12,7 +12,7 @@
   .tools{display:flex;gap:8px}button{font:inherit;color:inherit;border:1px solid #ffffff30;background:#ffffff10;border-radius:12px;padding:9px 14px;cursor:pointer;touch-action:none}button:focus-visible{outline:3px solid #9cf1d0}button:hover{background:#ffffff22}
   #screen{position:relative;isolation:isolate}canvas{display:block;width:100%;height:auto;border-radius:18px;box-shadow:0 20px 70px #0007;touch-action:none}
   #hud{display:flex;justify-content:space-between;gap:12px;font-size:12px;color:#b7abd1;padding:12px 4px}
-  #mobile{display:none;position:absolute;inset:0;pointer-events:none;align-items:flex-end;justify-content:space-between;padding:18px 22px;z-index:2}.pad{display:flex;gap:12px}#mobile button{pointer-events:auto;width:62px;height:62px;padding:0;background:#20172b70;border:2px solid #ffffff70;border-radius:50%;font-size:24px;font-weight:800;user-select:none;-webkit-user-select:none}#mobile button.pressed{background:#aa79edb0;transform:scale(.94)}#mobile #jump{width:76px;height:76px;background:#7348b699}#mobile #shot,#mobile #voice{font-size:16px;align-self:flex-end}#mobile #voice{background:#f5bd40b8;font-size:14px}
+  #mobile{display:none;position:absolute;inset:0;pointer-events:none;align-items:flex-end;justify-content:space-between;padding:18px 22px;z-index:2}.pad{display:flex;gap:12px}#mobile button{pointer-events:auto;width:62px;height:62px;padding:0;background:#20172b70;border:2px solid #ffffff70;border-radius:50%;font-size:24px;font-weight:800;user-select:none;-webkit-user-select:none}#mobile button.pressed{background:#aa79edb0;transform:scale(.94)}#mobile #jump{width:76px;height:76px;background:#7348b699}#mobile #shot,#mobile #voice{font-size:16px;align-self:flex-end}#mobile #voice{background:#f5bd40b8;font-size:14px}#stick{pointer-events:auto;position:relative;width:116px;height:116px;border:2px solid #ffffff55;border-radius:50%;background:radial-gradient(circle,#7c6ba344 0 38%,#20172b66 40%);box-shadow:inset 0 0 20px #ffffff22;touch-action:none}#stick::before,#stick::after{content:"";position:absolute;background:#ffffff25;left:50%;top:50%;transform:translate(-50%,-50%)}#stick::before{width:74px;height:2px}#stick::after{width:2px;height:74px}#stickKnob{position:absolute;left:50%;top:50%;width:52px;height:52px;margin:-26px;border:2px solid #ffffffa8;border-radius:50%;background:#b78cf080;box-shadow:0 3px 12px #0005;transition:transform .05s ease-out;pointer-events:none}
   #overlay{position:absolute;inset:0;z-index:3;display:grid;place-items:center;border-radius:18px;background:#18132980;backdrop-filter:blur(6px)}#overlay[hidden]{display:none}.card{text-align:center;max-width:520px;padding:25px}.eyebrow{color:#b5f5cf;font-size:11px;letter-spacing:.25em}.card h1{font-size:clamp(25px,5vw,48px);margin:12px 0}.card p{color:#f0e9fa;line-height:1.7;font-size:14px}.primary{background:#b5f5cf;color:#222033;border:0;font-weight:800;padding:13px 28px}.primary:hover{background:#d2ffe3}.secondary{margin-left:8px}#rotate{display:none}
   @media(pointer:coarse){#mobile{display:flex}#hud .help{display:none}}
   @media(max-height:600px) and (orientation:landscape){#wrap{width:min(100vw,calc((100dvh - 42px)*16/9));padding:0}.mast{height:36px;margin:0;padding:0 8px}.brand{font-size:12px}.brand small,#hud{display:none}.tools button{padding:4px 10px;font-size:12px}canvas,#overlay{border-radius:0}#mobile{padding:10px 18px}.card{padding:10px}.card h1{margin:7px 0}.card p{margin:8px 0}}
@@ -25,7 +25,7 @@
   <header class="mast"><div class="brand">いぼ次元ラッシュ<small>COLOR TRAIL / 5 STAGES</small></div><div class="tools"><button id="sound" aria-label="音のオンオフ" aria-pressed="true">音 ON</button><button id="pause">一時停止</button><button id="fullscreen">全画面</button></div></header>
   <div id="screen">
     <canvas id="game" width="960" height="540" aria-label="いぼ次元ラッシュ ゲーム画面"></canvas>
-    <div id="mobile"><div class="pad"><button id="left" aria-label="左へ">‹</button><button id="right" aria-label="右へ">›</button></div><div class="pad"><button id="voice" aria-label="声攻撃" hidden>声</button><button id="shot" aria-label="ミサイル">SHOT</button><button id="jump" aria-label="ジャンプ">↑</button></div></div>
+    <div id="mobile"><div class="pad"><div id="stick" role="slider" aria-label="移動スティック" aria-valuemin="-1" aria-valuemax="1" aria-valuenow="0"><div id="stickKnob"></div></div></div><div class="pad"><button id="voice" aria-label="声攻撃" hidden>声</button><button id="shot" aria-label="ミサイル">SHOT</button><button id="jump" aria-label="ジャンプ">↑</button></div></div>
     <div id="overlay"><div class="card"><div class="eyebrow" id="eyebrow">A LITTLE HERO. A COLORFUL JOURNEY.</div><h1 id="heading">いぼ次元ラッシュ</h1><p id="message">走って、跳んで、いぼミサイル！<br>5つの景色をめぐる、小さな冒険。<br><strong id="highscore">HIGH SCORE · IBO 000</strong></p><button class="primary" id="action">あそぶ</button><button class="secondary" id="retry" hidden>もう一度</button></div></div>
   </div>
   <div id="hud"><span class="help">← → / A D 移動　Space / X ジャンプ　I / Z ミサイル　Esc 一時停止　R ステージ1へ　GAME OVER時 C コンティニュー</span><span id="status">v0.60 · COLOR TRAIL</span></div>
@@ -123,8 +123,17 @@ function bindHold(id,key){
  const up=e=>{if(e.pointerId!==pointer)return;keys[key]=false;pointer=null;el.classList.remove("pressed");};
  el.addEventListener("pointerup",up);el.addEventListener("pointercancel",up);el.addEventListener("lostpointercapture",up);
 }
-bindHold("left","arrowleft"); bindHold("right","arrowright");
 bindHold("jump"," "); bindHold("shot","i");
+function bindStick(){
+ const stick=document.getElementById("stick"),knob=document.getElementById("stickKnob");let pointer=null;
+ const reset=()=>{keys.arrowleft=false;keys.arrowright=false;stick.setAttribute("aria-valuenow","0");if(knob.style)knob.style.transform="translate(0,0)";};
+ const move=e=>{if(e.pointerId!==pointer)return;const r=stick.getBoundingClientRect(),dx=e.clientX-(r.left+r.width/2),limit=r.width*.28,n=clamp(dx/limit,-1,1);keys.arrowleft=n<-.2;keys.arrowright=n>.2;stick.setAttribute("aria-valuenow",String(Math.round(n*100)/100));if(knob.style)knob.style.transform=`translate(${n*limit}px,0)`;};
+ stick.addEventListener("pointerdown",e=>{e.preventDefault();if(pointer!==null)return;pointer=e.pointerId;stick.setPointerCapture(pointer);move(e);});
+ stick.addEventListener("pointermove",move);
+ const release=e=>{if(e.pointerId!==pointer)return;pointer=null;reset();};
+ stick.addEventListener("pointerup",release);stick.addEventListener("pointercancel",release);stick.addEventListener("lostpointercapture",release);
+}
+bindStick();
 function bindVoiceButton(){
  const el=document.getElementById("voice");let pointer=null,start=0;
  el.addEventListener("pointerdown",e=>{e.preventDefault();if(pointer!==null)return;pointer=e.pointerId;start=performance.now();el.setPointerCapture(pointer);el.classList.add("pressed");});
