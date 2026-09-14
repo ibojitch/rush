@@ -13,8 +13,8 @@ assert.equal(run('new Set(SPRITE_TILES.flat().map(f=>f.name)).size'),16);
 assert.equal(run('SPRITE_ATLAS.width'),1280);assert.equal(run('SPRITE_ATLAS.height'),456);run('render()');
 for(const f of run('SPRITE_TILES.flat()')){assert(f.w>100&&f.h>150);assert(f.x>=0&&f.y>=0);assert(f.x+f.w<=1280&&f.y+f.h<=456)}
 for(const facing of [-1,1]){
- run(`resetLevel();mode="playing";player.x=500;player.y=455;player.onGround=true;player.facing=${facing};keys.i=true;update(16.6667);keys.i=false;var bullet=shots[0];var origin=bullet.x-bullet.vx;var n=0;while(bullet.alive&&n++<100)update(16.6667);`);
- assert.equal(run('bullet.distance'),384);assert(Math.abs(run('Math.abs(bullet.x-origin)')-384)<.01);
+ run(`resetLevel();level.platforms=[{x:0,y:455,w:5200,h:85}];enemies=[];mode="playing";player.x=500;player.y=455;player.onGround=true;player.facing=${facing};keys.i=true;update(16.6667);keys.i=false;var bullet=shots[0];var origin=bullet.x-bullet.vx;var launchVy=bullet.vy;var n=0;while(bullet.alive&&n++<160)update(16.6667);`);
+ assert(run('Math.sign(launchVy)')===-1);assert(run('Math.abs(bullet.vx)<8.5'));assert(run('Math.abs(bullet.x-origin)>400&&Math.abs(bullet.x-origin)<600'));assert.equal(run('bullet.alive'),false);
 }
 run('resetLevel();mode="playing";player.y=455;player.onGround=false;player.coyote=90;keys[" "]=true;update(16.6667)');assert(run('player.vy<0'));run('clearKeys()');
 run('resetLevel();mode="playing";player.y=455;player.onGround=false;player.coyote=90;keys.x=true;update(16.6667)');assert(run('player.vy<0'));run('clearKeys()');
@@ -31,6 +31,14 @@ run('togglePause()');assert.equal(run('mode'),'paused');const x=run('player.x');
 for(let i=0;i<5;i++){run(`stageIndex=${i};resetLevel();mode="playing";player.inv=100000;for(let n=0;n<600;n++)update(16.6667);render()`);assert(run('enemies.every(e=>Number.isFinite(e.x)&&Number.isFinite(e.y))'));}
 assert.equal(run('enemyCanShoot("walker",0)'),false);assert.equal(run('enemyCanShoot("hopper",1)'),true);assert.equal(run('enemyCanShoot("flyer",1)'),false);assert.equal(run('enemyCanShoot("hopper",2)'),true);assert.equal(run('enemyCanShoot("flyer",2)'),true);assert.equal(run('enemyCanShoot("walker",2)'),false);assert.equal(run('enemyCanShoot("walker",3)'),true);assert.equal(run('beamTuning(3).speed<beamTuning(4).speed'),true);assert.equal(run('beamTuning(3).cooldown>beamTuning(4).cooldown'),true);
 run('muted=true;stageIndex=1;resetLevel();mode="playing";const shooter=enemies.find(e=>e.type==="hopper");player.x=700;player.y=455;shooter.x=400;shooter.y=455;shooter.onGround=true;shooter.beamCd=0;update(16.6667)');assert(run('enemyShots.length>0'));
+// Stage 2's first firing enemy drops KOE. Collection survives stages and continues, but a fresh run resets it.
+run('dropKoeItem(shooter)');assert.equal(run('koeItemState'),'dropped');assert.equal(run('powerups.filter(p=>p.type==="koe").length'),1);
+run('const koe=powerups.find(p=>p.type==="koe");player.x=koe.x;player.y=koe.y+player.h/2;update(0)');assert.equal(run('koeItemState'),'collected');
+run('stageIndex=2;resetLevel()');assert.equal(run('koeItemState'),'collected');
+run('restartCurrentStage()');assert.equal(run('koeItemState'),'collected');
+run('mode="playing";player.facing=1;voiceAttacks=[];fireVoiceAttack("p");var shortVoice=voiceAttacks[0];fireVoiceAttack("v")');assert.equal(run('shortVoice.text'),'プ');assert(run('shortVoice.vx<0'));assert.equal(run('voiceAttacks.length'),1);
+run('voiceAttacks=[];fireVoiceAttack("v");var longVoice=voiceAttacks[0]');assert.equal(run('longVoice.text'),'ヴリヴリブー');assert(run('Math.abs(longVoice.vx)<Math.abs(shortVoice.vx)'));
+run('startFromStageOne()');assert.equal(run('koeItemState'),'pending');
 run('stageIndex=0;resetLevel();mode="playing";enemies=[];player.hp=2;player.x=level.hearts[0].x;player.y=level.hearts[0].y+player.h/2;update(0)');assert.equal(run('player.hp'),3);assert(run('level.hearts[0].taken'));
 run('stageIndex=0;resetLevel();mode="playing";enemies=[];totalIbo=9;player.score=9;Math.random=()=>0;const coin=level.coins[0];player.x=coin.x;player.y=coin.y+player.h/2;update(0)');assert.equal(run('totalIbo'),10);assert.equal(run('highScore'),10);assert.equal(storage.get('ibojigen-rush-high-score'),'10');assert.equal(run('powerups.filter(p=>p.type==="star").length'),1);assert.equal(run('powerups.filter(p=>p.type==="maxHeart").length'),1);
 run('const star=powerups.find(p=>p.type==="star");player.x=star.x;player.y=star.y+player.h/2;update(0)');assert.equal(run('player.starTime'),8000);const hp=run('player.hp');run('hurtPlayer(false)');assert.equal(run('player.hp'),hp);run('player.starTime=975');assert.equal(run('playerIsGold()'),false);run('player.starTime=925');assert.equal(run('playerIsGold()'),true);
