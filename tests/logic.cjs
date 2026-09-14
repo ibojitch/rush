@@ -14,7 +14,7 @@ assert.equal(run('SPRITE_ATLAS.width'),1280);assert.equal(run('SPRITE_ATLAS.heig
 for(const f of run('SPRITE_TILES.flat()')){assert(f.w>100&&f.h>150);assert(f.x>=0&&f.y>=0);assert(f.x+f.w<=1280&&f.y+f.h<=684)}
 assert.deepEqual(run('overlapCenter({x:10,y:20,w:30,h:20},{x:25,y:25,w:20,h:30})'),{x:32.5,y:32.5});
 assert(run('shotTrailEndpoints({x:500,y:200,vx:7,vy:0}).tailX<500'));assert(run('shotTrailEndpoints({x:500,y:200,vx:-7,vy:0}).tailX>500'));
-assert.equal(run('shotItemState'),'pending');run('resetLevel();mode="playing";keys.i=true;update(16.6667);keys.i=false');assert.equal(run('shots.length'),0);assert.equal(el('shot').hidden,true);run('shotItemState="collected";syncShotUI()');
+assert.equal(run('shotItemState'),'pending');run('resetLevel();mode="playing";keys.i=true;update(16.6667);keys.i=false');assert.equal(run('shots.length'),0);assert.equal(el('shot').hidden,true);assert(!el('controlsHelp').textContent.includes('ミサイル'));assert(el('controlsHelp').textContent.includes('C コンティニュー（GAME OVER時）'));run('shotItemState="collected";syncShotUI();syncControlsHelp()');assert(el('controlsHelp').textContent.includes('I / Z ミサイル'));
 assert.equal(run('typeof sfx.shotUnlock'),'function');
 for(const facing of [-1,1]){
  run(`resetLevel();level.platforms=[{x:0,y:455,w:5200,h:85}];enemies=[];mode="playing";player.x=500;player.y=455;player.onGround=true;player.facing=${facing};keys.i=true;update(16.6667);keys.i=false;var bullet=shots[0];var origin=bullet.x-bullet.vx;var launchVy=bullet.vy;var n=0;while(bullet.alive&&n++<160)update(16.6667);`);
@@ -41,6 +41,7 @@ run('muted=true;stageIndex=1;resetLevel();mode="playing";const shooter=enemies.f
 // The first enemy drops KOE. A Stage 2 firing enemy drops the normal-shot unlock.
 run('startFromStageOne();mode="playing";const firstEnemy=enemies[0];dropKoeItem(firstEnemy)');assert.equal(run('koeItemState'),'dropped');assert.equal(run('powerups.filter(p=>p.type==="koe").length'),1);
 run('const koe=powerups.find(p=>p.type==="koe");player.x=koe.x;player.y=koe.y+player.h/2;update(0)');assert.equal(run('koeItemState'),'collected');assert.equal(run('voiceEnergy'),50);
+assert(el('controlsHelp').textContent.includes('P / S / B / V 声攻撃'));
 run('stageIndex=1;resetLevel();mode="playing";const shotEnemy=enemies.find(e=>e.type==="hopper");dropShotItem(shotEnemy)');assert.equal(run('shotItemState'),'dropped');assert.equal(run('powerups.filter(p=>p.type==="shot").length'),1);
 run('const shotItem=powerups.find(p=>p.type==="shot");player.x=shotItem.x;player.y=shotItem.y+player.h/2;update(0)');assert.equal(run('shotItemState'),'collected');assert.equal(el('shot').hidden,false);
 run('stageIndex=2;resetLevel()');assert.equal(run('koeItemState'),'collected');assert.equal(run('shotItemState'),'collected');

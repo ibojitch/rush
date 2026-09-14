@@ -28,7 +28,7 @@
     <div id="mobile"><div class="pad"><div id="stick" role="slider" aria-label="移動スティック" aria-valuemin="-1" aria-valuemax="1" aria-valuenow="0"><div id="stickKnob"></div></div></div><div class="pad"><button id="voice" aria-label="声攻撃" hidden>声</button><button id="shot" aria-label="ミサイル" hidden>SHOT</button><button id="jump" aria-label="ジャンプ">↑</button></div></div>
     <div id="overlay"><div class="card"><div class="eyebrow" id="eyebrow">A LITTLE HERO. A COLORFUL JOURNEY.</div><h1 id="heading">いぼ次元ラッシュ</h1><p id="message">走って、跳んで、いぼミサイル！<br>5つの景色をめぐる、小さな冒険。<br><strong id="highscore">HIGH SCORE · IBO 000</strong></p><button class="primary" id="action">あそぶ</button><button class="secondary" id="retry" hidden>もう一度</button></div></div>
   </div>
-  <div id="hud"><span class="help">←→ / 移動　Space / X ジャンプ　I / Z ミサイル　P / S / B / V 声攻撃　Esc 一時停止　R ステージ1へ　GAME OVER時 C コンティニュー</span><span id="status">v0.60 · COLOR TRAIL</span></div>
+  <div id="hud"><span class="help" id="controlsHelp"></span><span id="status">v0.60 · COLOR TRAIL</span></div>
 </div><div id="rotate">↻<br>横向きにして遊んでね</div>
 
 <script>
@@ -351,6 +351,13 @@ function syncVoiceUI(){
 function syncShotUI(){
  const el=document.getElementById("shot");el.hidden=shotItemState!=="collected";el.disabled=shotItemState!=="collected";
 }
+function syncControlsHelp(){
+ const controls=["←→ / 移動","Space / X ジャンプ"];
+ if(shotItemState==="collected")controls.push("I / Z ミサイル");
+ if(koeItemState==="collected")controls.push("P / S / B / V 声攻撃");
+ controls.push("Esc 一時停止","R ステージ1へ","C コンティニュー（GAME OVER時）");
+ document.getElementById("controlsHelp").textContent=controls.join("　");
+}
 function fireVoiceAttack(key){
   if(mode!=="playing"||koeItemState!=="collected"||voiceAttacks.length)return;
   const voice=VOICE_WORDS[key]||VOICE_WORDS[["p","s","b","v"][Math.floor(Math.random()*4)]];
@@ -399,7 +406,7 @@ function resetLevel() {
   shots=[];voiceAttacks=[];enemyShots=[];powerups=[];particles=[];rings=[];voiceFog=[];cameraX=0;clearPlayed=false;screenShake=0;goalPulse=0;
   if(koeItemState==="dropped"&&koeDropStage===stageIndex&&koeDropPosition)powerups.push({type:"koe",x:koeDropPosition.x,y:koeDropPosition.y,alive:true});
   if(shotItemState==="dropped"&&shotDropStage===stageIndex&&shotDropPosition)powerups.push({type:"shot",x:shotDropPosition.x,y:shotDropPosition.y,alive:true});
-  syncVoiceUI();syncShotUI();
+  syncVoiceUI();syncShotUI();syncControlsHelp();
   level.coins.forEach(c=>c.taken=false);
 }
 resetLevel();
@@ -557,9 +564,9 @@ function update(dt) {
     if(dx*dx+dy*dy<34*34){
       item.alive=false;
       if(item.type==="koe"){
-        koeItemState="collected";koeDropPosition=null;koeDropStage=null;voiceEnergy=KOE_PICKUP_ENERGY;syncVoiceUI();spawnBurst(item.x,item.y,"#c9f4ff",16,1.1);spawnRing(item.x,item.y,"#ff5d78",26);emitKoeEvent("collected",{stage:stageIndex+1});
+        koeItemState="collected";koeDropPosition=null;koeDropStage=null;voiceEnergy=KOE_PICKUP_ENERGY;syncVoiceUI();syncControlsHelp();spawnBurst(item.x,item.y,"#c9f4ff",16,1.1);spawnRing(item.x,item.y,"#ff5d78",26);emitKoeEvent("collected",{stage:stageIndex+1});
       }else if(item.type==="shot"){
-        shotItemState="collected";shotDropPosition=null;shotDropStage=null;syncShotUI();sfx.shotUnlock();spawnBurst(item.x,item.y,"#d5b7ff",16,1.1);spawnRing(item.x,item.y,"#9a62ff",26);
+        shotItemState="collected";shotDropPosition=null;shotDropStage=null;syncShotUI();syncControlsHelp();sfx.shotUnlock();spawnBurst(item.x,item.y,"#d5b7ff",16,1.1);spawnRing(item.x,item.y,"#9a62ff",26);
       }else if(item.type==="maxHeart"){
         runMaxHp++;player.maxHp=runMaxHp;player.hp=player.maxHp;sfx.maxHp();spawnBurst(item.x,item.y,"#ff4f78",26);
       }else{
@@ -899,10 +906,10 @@ function drawParticles(){
 function drawUI(){
   ctx.fillStyle="rgba(0,0,0,.35)"; ctx.fillRect(16,16,300,koeItemState==="collected"?94:72);
   ctx.fillStyle="#fff"; ctx.font="bold 20px Yu Gothic";
-  ctx.fillText(`HP ${"♥".repeat(player.hp)}${"♡".repeat(player.maxHp-player.hp)}`,28,43);
+  ctx.fillText("HP ",28,43);ctx.fillStyle="#ff5e78";ctx.fillText("♥".repeat(player.hp),62,43);ctx.fillStyle="#ffc2ce";ctx.fillText("♡".repeat(player.maxHp-player.hp),62+player.hp*20,43);
   ctx.fillText(`SCORE ${String(totalScore).padStart(3,"0")}  BEST ${String(highScore).padStart(3,"0")}`,28,72);
   if(koeItemState==="collected"){
-    ctx.fillStyle="#513f24";ctx.fillRect(28,88,126,8);ctx.fillStyle="#ffe75a";ctx.fillRect(28,88,126*voiceEnergy/VOICE_ENERGY_MAX,8);ctx.fillStyle="#fff5bd";ctx.font="bold 13px Yu Gothic";ctx.fillText(`声 ${voiceEnergy}`,162,95);
+    ctx.fillStyle="#513f24";ctx.fillRect(28,88,126,8);ctx.strokeStyle="#ff9b3d";ctx.lineWidth=2;ctx.strokeRect(27,87,128,10);ctx.fillStyle="#ffe75a";ctx.fillRect(28,88,126*voiceEnergy/VOICE_ENERGY_MAX,8);ctx.fillStyle="#fff5bd";ctx.font="bold 13px Yu Gothic";ctx.fillText(`声 ${voiceEnergy}`,162,95);
   }
   const progress=Math.round(player.x/level.goalX*100);
   ctx.fillStyle="rgba(255,255,255,.28)"; ctx.fillRect(340,26,300,12);
