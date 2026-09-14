@@ -25,10 +25,10 @@
   <header class="mast"><div class="brand">いぼ次元ラッシュ<small>COLOR TRAIL / 5 STAGES</small></div><div class="tools"><button id="sound" aria-label="音のオンオフ" aria-pressed="true">音 ON</button><button id="pause">一時停止</button><button id="fullscreen">全画面</button></div></header>
   <div id="screen">
     <canvas id="game" width="960" height="540" aria-label="いぼ次元ラッシュ ゲーム画面"></canvas>
-    <div id="mobile"><div class="pad"><div id="stick" role="slider" aria-label="移動スティック" aria-valuemin="-1" aria-valuemax="1" aria-valuenow="0"><div id="stickKnob"></div></div></div><div class="pad"><button id="voice" aria-label="声攻撃" hidden>声</button><button id="shot" aria-label="ミサイル">SHOT</button><button id="jump" aria-label="ジャンプ">↑</button></div></div>
+    <div id="mobile"><div class="pad"><div id="stick" role="slider" aria-label="移動スティック" aria-valuemin="-1" aria-valuemax="1" aria-valuenow="0"><div id="stickKnob"></div></div></div><div class="pad"><button id="voice" aria-label="声攻撃" hidden>声</button><button id="shot" aria-label="ミサイル" hidden>SHOT</button><button id="jump" aria-label="ジャンプ">↑</button></div></div>
     <div id="overlay"><div class="card"><div class="eyebrow" id="eyebrow">A LITTLE HERO. A COLORFUL JOURNEY.</div><h1 id="heading">いぼ次元ラッシュ</h1><p id="message">走って、跳んで、いぼミサイル！<br>5つの景色をめぐる、小さな冒険。<br><strong id="highscore">HIGH SCORE · IBO 000</strong></p><button class="primary" id="action">あそぶ</button><button class="secondary" id="retry" hidden>もう一度</button></div></div>
   </div>
-  <div id="hud"><span class="help">← → / A D 移動　Space / X ジャンプ　I / Z ミサイル　Esc 一時停止　R ステージ1へ　GAME OVER時 C コンティニュー</span><span id="status">v0.60 · COLOR TRAIL</span></div>
+  <div id="hud"><span class="help">←→ / 移動　Space / X ジャンプ　I / Z ミサイル　P / S / B / V 声攻撃　Esc 一時停止　R ステージ1へ　GAME OVER時 C コンティニュー</span><span id="status">v0.60 · COLOR TRAIL</span></div>
 </div><div id="rotate">↻<br>横向きにして遊んでね</div>
 
 <script>
@@ -191,6 +191,7 @@ function noise(d=.08,v=.06,options={}){
 const sfx = {
   jump:()=>{voice(250,620,.14,"square",.12,{cutoff:2600});voice(500,900,.10,"sine",.07,{delay:.025});},
   shot:()=>{voice(1050,170,.11,"sawtooth",.10,{cutoff:4200,cutoffEnd:500});voice(1700,420,.07,"square",.055);noise(.07,.045,{cutoff:1600});},
+  shotUnlock:()=>{[523.25,659.25,783.99].forEach((f,i)=>voice(f,f,.16,"triangle",.11,{delay:i*.07,cutoff:3600}));},
   hit:()=>{voice(190,55,.18,"sawtooth",.14,{cutoff:1300,cutoffEnd:250});voice(95,45,.22,"square",.07);noise(.12,.075,{cutoff:420});},
   coin:()=>{voice(740,740,.09,"square",.09,{cutoff:3600});voice(1110,1110,.12,"triangle",.08,{delay:.065});voice(1480,1480,.16,"sine",.045,{delay:.12});},
   heal:()=>{[523.25,659.25,783.99].forEach((f,i)=>voice(f,f*1.01,.24,"sine",.08,{delay:i*.07,attack:.02}));},
@@ -279,7 +280,7 @@ function setMode(next){
 }
 function togglePause(){if(mode==="playing")setMode("paused");else if(mode==="paused")setMode("playing");}
 function startFromStageOne(){
-  stageIndex=0;totalScore=0;stageStartScore=0;totalIbo=0;stageStartIbo=0;runMaxHp=3;starMilestones.clear();koeItemState="pending";koeDropPosition=null;voiceEnergy=VOICE_ENERGY_MAX;resetLevel();setMode("playing");
+  stageIndex=0;totalScore=0;stageStartScore=0;totalIbo=0;stageStartIbo=0;runMaxHp=3;starMilestones.clear();koeItemState="pending";koeDropPosition=null;koeDropStage=null;shotItemState="pending";shotDropPosition=null;shotDropStage=null;voiceEnergy=VOICE_ENERGY_MAX;resetLevel();setMode("playing");
 }
 function restartCurrentStage(){
  totalScore=0;stageStartScore=0;totalIbo=0;stageStartIbo=0;starMilestones.clear();resetLevel();setMode("playing");
@@ -338,7 +339,7 @@ const player = {
 
 let enemies=[], shots=[], voiceAttacks=[], enemyShots=[], powerups=[], particles=[], rings=[], voiceFog=[], cameraX=0, last=0, clearPlayed=false, screenShake=0, goalPulse=0;
 // This state belongs to one run, not one stage: a continue must never remove an item already earned.
-let koeItemState="pending", koeDropPosition=null, koeFirstShooterId=null, nextEnemyId=1, voiceEnergy=VOICE_ENERGY_MAX;
+let koeItemState="pending", koeDropPosition=null, koeDropStage=null, shotItemState="pending", shotDropPosition=null, shotDropStage=null, nextEnemyId=1, voiceEnergy=VOICE_ENERGY_MAX;
 function emitKoeEvent(type,detail={}){
   if(typeof CustomEvent!=="undefined"&&window.dispatchEvent)window.dispatchEvent(new CustomEvent(`koe:item-${type}`,{detail}));
 }
@@ -346,6 +347,9 @@ function emitKoeEvent(type,detail={}){
 const VOICE_WORDS={p:{text:"プ",cost:6,range:.30},s:{text:"ス～",cost:10,range:.40},b:{text:"ブリブリ",cost:14,range:.50},v:{text:"ヴリヴリブー",cost:20,range:.70}};
 function syncVoiceUI(){
  const el=document.getElementById("voice");el.hidden=koeItemState!=="collected";el.textContent=`声 ${voiceEnergy}`;el.disabled=koeItemState!=="collected"||voiceEnergy<6;
+}
+function syncShotUI(){
+ const el=document.getElementById("shot");el.hidden=shotItemState!=="collected";el.disabled=shotItemState!=="collected";
 }
 function fireVoiceAttack(key){
   if(mode!=="playing"||koeItemState!=="collected"||voiceAttacks.length)return;
@@ -390,11 +394,12 @@ function resetLevel() {
   totalScore=stageStartScore;totalIbo=stageStartIbo;
   level=buildLevel(stageIndex);musicTimer=0;musicStep=0;
   Object.assign(player,{x:120,y:380,vx:0,vy:0,onGround:false,facing:1,hp:runMaxHp,maxHp:runMaxHp,inv:0,starTime:0,shotCd:0,dead:false,clear:false,_jumpLatch:false,_shotLatch:false,coyote:0,jumpBuffer:0,airPeakY:380,safeX:120,safeY:FLOOR_Y,recoil:0});
-  nextEnemyId=1;koeFirstShooterId=null;
+  nextEnemyId=1;
   enemies=level.enemySpawns.map(makeEnemy);
   shots=[];voiceAttacks=[];enemyShots=[];powerups=[];particles=[];rings=[];voiceFog=[];cameraX=0;clearPlayed=false;screenShake=0;goalPulse=0;
-  if(stageIndex===1&&koeItemState==="dropped"&&koeDropPosition)powerups.push({type:"koe",x:koeDropPosition.x,y:koeDropPosition.y,alive:true});
-  syncVoiceUI();
+  if(koeItemState==="dropped"&&koeDropStage===stageIndex&&koeDropPosition)powerups.push({type:"koe",x:koeDropPosition.x,y:koeDropPosition.y,alive:true});
+  if(shotItemState==="dropped"&&shotDropStage===stageIndex&&shotDropPosition)powerups.push({type:"shot",x:shotDropPosition.x,y:shotDropPosition.y,alive:true});
+  syncVoiceUI();syncShotUI();
   level.coins.forEach(c=>c.taken=false);
 }
 resetLevel();
@@ -443,11 +448,17 @@ function spawnVoiceFog(x,y,direction=1,impact=false){
   }
 }
 function dropKoeItem(enemy){
-  if(stageIndex!==1||koeItemState!=="pending"||enemy.id!==koeFirstShooterId)return;
-  koeItemState="dropped";koeDropPosition={x:enemy.x,y:enemy.y-50};
+  if(koeItemState!=="pending")return;
+  koeItemState="dropped";koeDropStage=stageIndex;koeDropPosition={x:enemy.x,y:enemy.y-50};
   powerups.push({type:"koe",x:koeDropPosition.x,y:koeDropPosition.y,alive:true});
   spawnBurst(enemy.x,enemy.y-50,"#bdefff",12,1);spawnRing(enemy.x,enemy.y-50,"#ff5d78",22);
   emitKoeEvent("spawned",{stage:stageIndex+1,x:koeDropPosition.x,y:koeDropPosition.y});
+}
+function dropShotItem(enemy){
+  if(stageIndex!==1||shotItemState!=="pending"||!enemyCanShoot(enemy.type))return;
+  shotItemState="dropped";shotDropStage=stageIndex;shotDropPosition={x:enemy.x,y:enemy.y-48};
+  powerups.push({type:"shot",x:shotDropPosition.x,y:shotDropPosition.y,alive:true});
+  spawnBurst(enemy.x,enemy.y-48,"#c9a8ff",12,1);spawnRing(enemy.x,enemy.y-48,"#9a62ff",22);
 }
 function awardScore(points){
   totalScore+=points;saveHighScore();
@@ -458,7 +469,7 @@ function enemyScore(enemy){
 }
 function defeatEnemy(enemy){
   if(!enemy.alive)return;
-  enemy.alive=false;dropKoeItem(enemy);awardScore(enemyScore(enemy));
+  enemy.alive=false;dropKoeItem(enemy);dropShotItem(enemy);awardScore(enemyScore(enemy));
   if(koeItemState==="collected"){voiceEnergy=Math.min(VOICE_ENERGY_MAX,voiceEnergy+2);syncVoiceUI();}
 }
 
@@ -492,7 +503,7 @@ function update(dt) {
     spawnBurst(player.x,player.y,"#c99a68",5,.5);spawnBurst(player.x,player.y,"#ffe4a6",2,.35);
   }
 
-  if ((keys["i"]||keys["z"]) && player.shotCd<=0 && !player._shotLatch) {
+  if (shotItemState==="collected"&&(keys["i"]||keys["z"]) && player.shotCd<=0 && !player._shotLatch) {
     player.shotCd=280; player._shotLatch=true;player.recoil=130;
     // A lighter, 20° lob: on flat ground it lands around half a screen away.
     const shotSpeed=7,shotAngle=Math.PI/9;
@@ -546,7 +557,9 @@ function update(dt) {
     if(dx*dx+dy*dy<34*34){
       item.alive=false;
       if(item.type==="koe"){
-        koeItemState="collected";koeDropPosition=null;voiceEnergy=KOE_PICKUP_ENERGY;syncVoiceUI();spawnBurst(item.x,item.y,"#c9f4ff",16,1.1);spawnRing(item.x,item.y,"#ff5d78",26);emitKoeEvent("collected",{stage:stageIndex+1});
+        koeItemState="collected";koeDropPosition=null;koeDropStage=null;voiceEnergy=KOE_PICKUP_ENERGY;syncVoiceUI();spawnBurst(item.x,item.y,"#c9f4ff",16,1.1);spawnRing(item.x,item.y,"#ff5d78",26);emitKoeEvent("collected",{stage:stageIndex+1});
+      }else if(item.type==="shot"){
+        shotItemState="collected";shotDropPosition=null;shotDropStage=null;syncShotUI();sfx.shotUnlock();spawnBurst(item.x,item.y,"#d5b7ff",16,1.1);spawnRing(item.x,item.y,"#9a62ff",26);
       }else if(item.type==="maxHeart"){
         runMaxHp++;player.maxHp=runMaxHp;player.hp=player.maxHp;sfx.maxHp();spawnBurst(item.x,item.y,"#ff4f78",26);
       }else{
@@ -579,7 +592,6 @@ function update(dt) {
       if(e.beamCd<=0&&distance>120&&distance<620){
         const beam=beamTuning(stageIndex),speed=beam.speed;
         enemyShots.push({x:e.x+e.facing*16,y:e.y-58,vx:dx/distance*speed,vy:dy/distance*speed,r:5,distance:0,alive:true});
-        if(stageIndex===1&&koeItemState==="pending"&&koeFirstShooterId===null)koeFirstShooterId=e.id;
         e.beamCd=beam.cooldown+Math.random()*beam.variance;sfx.enemyShot();
       }
     }
@@ -812,6 +824,12 @@ function drawPowerups(){
       if(atlasReady)ctx.drawImage(atlas,KOE_TILE.x,KOE_TILE.y,KOE_TILE.w,KOE_TILE.h,-20,-29,40,58);
       else{ctx.fillStyle="#c9f4ff";ctx.fillRect(-12,-17,24,34);ctx.fillStyle="#ff5d78";ctx.fillRect(-14,-23,28,8);}
       ctx.restore();continue;
+    }
+    if(item.type==="shot"){
+      const pulse=1+Math.sin(performance.now()/170+item.x)*.10,spin=performance.now()/700;
+      ctx.scale(pulse,pulse);ctx.shadowColor="#ffd84d";ctx.shadowBlur=28;ctx.fillStyle="#ffcc38";ctx.beginPath();ctx.arc(0,0,18,0,Math.PI*2);ctx.fill();
+      ctx.shadowBlur=0;ctx.fillStyle="#fff7b8";ctx.beginPath();ctx.arc(-5,-6,8,0,Math.PI*2);ctx.fill();ctx.strokeStyle="#fffbe2";ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,19,0,Math.PI*2);ctx.stroke();
+      ctx.rotate(spin);ctx.strokeStyle="#ffe783";ctx.lineWidth=2;ctx.beginPath();ctx.arc(0,0,26,0,Math.PI*1.6);ctx.stroke();ctx.rotate(-spin*2);ctx.beginPath();ctx.arc(0,0,29,0,Math.PI*1.3);ctx.stroke();ctx.restore();continue;
     }
     if(item.type==="maxHeart"){
       ctx.scale(1.35,1.35);ctx.shadowColor="#ff2858";ctx.shadowBlur=22;ctx.fillStyle="#ff416d";ctx.strokeStyle="#fff";ctx.lineWidth=2.5;ctx.beginPath();
