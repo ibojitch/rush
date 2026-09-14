@@ -79,16 +79,18 @@ const SPRITE_TILES = [
 let mode="title", stageIndex=0, muted=false, musicTimer=0, musicStep=0;
 const FLOOR_Y = 455;
 const HIGH_SCORE_KEY="ibojigen-rush-high-score";
-let totalIbo=0,stageStartIbo=0,runMaxHp=3,highScore=loadHighScore(),starMilestones=new Set();
+const VOICE_ENERGY_MAX=100;
+const KOE_PICKUP_ENERGY=50;
+let totalScore=0,stageStartScore=0,totalIbo=0,stageStartIbo=0,runMaxHp=3,highScore=loadHighScore(),starMilestones=new Set();
 
 function loadHighScore(){try{return Math.max(0,Number(localStorage.getItem(HIGH_SCORE_KEY))||0);}catch{return 0;}}
 function saveHighScore(){
- if(totalIbo<=highScore)return;highScore=totalIbo;
+ if(totalScore<=highScore)return;highScore=totalScore;
  try{localStorage.setItem(HIGH_SCORE_KEY,String(highScore));}catch{}
  updateHighScoreDisplay();
 }
 function updateHighScoreDisplay(){
- const el=document.getElementById("highscore");if(el)el.textContent=`HIGH SCORE · IBO ${String(highScore).padStart(3,"0")}`;
+ const el=document.getElementById("highscore");if(el)el.textContent=`HIGH SCORE · SCORE ${String(highScore).padStart(3,"0")}`;
 }
 updateHighScoreDisplay();
 
@@ -268,23 +270,23 @@ function setMode(next){
  if(next==="paused"){title.textContent="ちょっと休憩";message.textContent="準備ができたら、冒険の続きを。";action.textContent="つづける";}
  if(next==="dead"){
    title.textContent="もう一度、いこう！";action.textContent="ステージ1から";
-   message.textContent=stageIndex>0?"ステージ1からリトライするか、IBO 0でこのステージからコンティニューできます。":"ステージ1からリトライします。";
+   message.textContent=stageIndex>0?"ステージ1からリトライするか、SCORE 0でこのステージからコンティニューできます。":"ステージ1からリトライします。";
    retry.textContent="コンティニュー";
  }
- if(next==="clear"){title.textContent=stageIndex===STAGE_COUNT-1?"冒険、コンプリート！":"STAGE CLEAR!";message.textContent=`${themes[stageIndex].name} · いぼ ${player.score} / ${level.coins.length}`;action.textContent=stageIndex===STAGE_COUNT-1?"最初から遊ぶ":"次のステージへ";retry.textContent="ステージ1から";}
+ if(next==="clear"){title.textContent=stageIndex===STAGE_COUNT-1?"冒険、コンプリート！":"STAGE CLEAR!";message.textContent=`${themes[stageIndex].name} · SCORE ${totalScore}`;action.textContent=stageIndex===STAGE_COUNT-1?"最初から遊ぶ":"次のステージへ";retry.textContent="ステージ1から";}
 }
 function togglePause(){if(mode==="playing")setMode("paused");else if(mode==="paused")setMode("playing");}
 function startFromStageOne(){
-  stageIndex=0;totalIbo=0;stageStartIbo=0;runMaxHp=3;starMilestones.clear();koeItemState="pending";koeDropPosition=null;voiceEnergy=100;resetLevel();setMode("playing");
+  stageIndex=0;totalScore=0;stageStartScore=0;totalIbo=0;stageStartIbo=0;runMaxHp=3;starMilestones.clear();koeItemState="pending";koeDropPosition=null;voiceEnergy=VOICE_ENERGY_MAX;resetLevel();setMode("playing");
 }
 function restartCurrentStage(){
- totalIbo=0;stageStartIbo=0;starMilestones.clear();resetLevel();setMode("playing");
+ totalScore=0;stageStartScore=0;totalIbo=0;stageStartIbo=0;starMilestones.clear();resetLevel();setMode("playing");
 }
 document.getElementById("pause").onclick=togglePause;
 document.getElementById("action").onclick=()=>{
  audio();const previousMode=mode;
  if(previousMode==="paused"){setMode("playing");return;}
- if(previousMode==="clear"&&stageIndex<STAGE_COUNT-1){stageIndex++;stageStartIbo=totalIbo;resetLevel();setMode("playing");return;}
+ if(previousMode==="clear"&&stageIndex<STAGE_COUNT-1){stageIndex++;stageStartScore=totalScore;stageStartIbo=totalIbo;resetLevel();setMode("playing");return;}
  startFromStageOne();
 };
 document.getElementById("retry").onclick=()=>mode==="dead"&&stageIndex>0?restartCurrentStage():startFromStageOne();
@@ -332,13 +334,14 @@ const player = {
   hp:3, maxHp:3, inv:0, starTime:0, shotCd:0, score:0, dead:false, clear:false
 };
 
-let enemies=[], shots=[], voiceAttacks=[], enemyShots=[], powerups=[], particles=[], rings=[], cameraX=0, last=0, clearPlayed=false, screenShake=0, goalPulse=0;
+let enemies=[], shots=[], voiceAttacks=[], enemyShots=[], powerups=[], particles=[], rings=[], voiceFog=[], cameraX=0, last=0, clearPlayed=false, screenShake=0, goalPulse=0;
 // This state belongs to one run, not one stage: a continue must never remove an item already earned.
-let koeItemState="pending", koeDropPosition=null, koeFirstShooterId=null, nextEnemyId=1, voiceEnergy=100;
+let koeItemState="pending", koeDropPosition=null, koeFirstShooterId=null, nextEnemyId=1, voiceEnergy=VOICE_ENERGY_MAX;
 function emitKoeEvent(type,detail={}){
   if(typeof CustomEvent!=="undefined"&&window.dispatchEvent)window.dispatchEvent(new CustomEvent(`koe:item-${type}`,{detail}));
 }
-const VOICE_WORDS={p:{text:"プ",cost:6},s:{text:"ス～",cost:10},b:{text:"ブリブリ",cost:14},v:{text:"ヴリヴリブー",cost:20}};
+// Range is a fraction of the visible game width: プ 30%, ス～ 40%, ブリブリ 50%, ヴリヴリブー 70%.
+const VOICE_WORDS={p:{text:"プ",cost:6,range:.30},s:{text:"ス～",cost:10,range:.40},b:{text:"ブリブリ",cost:14,range:.50},v:{text:"ヴリヴリブー",cost:20,range:.70}};
 function syncVoiceUI(){
  const el=document.getElementById("voice");el.hidden=koeItemState!=="collected";el.textContent=`声 ${voiceEnergy}`;el.disabled=koeItemState!=="collected"||voiceEnergy<6;
 }
@@ -347,13 +350,14 @@ function fireVoiceAttack(key){
   const voice=VOICE_WORDS[key]||VOICE_WORDS[["p","s","b","v"][Math.floor(Math.random()*4)]];
   if(voiceEnergy<voice.cost)return;
   voiceEnergy-=voice.cost;syncVoiceUI();
-  const {text:word,cost}=voice,letters=Array.from(word).length,direction=-player.facing;
+  const {text:word,cost,range}=voice,letters=Array.from(word).length,direction=-player.facing;
   // Longer calls linger in the world; all travel straight behind the hero.
   const speed=7.4/(1+(letters-1)*.16);
-  // Lower the launch point from chest height to the hero's rear/hip height.
-  const launchY=player.y-43+player.h*.5;
+  // Keep the voice hitbox clearly above the feet so it does not immediately hit the platform being stood on.
+  const launchY=player.y-16;
   // `x` is the rear edge next to the hero: right edge when flying left, left edge when flying right.
-  voiceAttacks.push({text:word,x:player.x+direction*38,y:launchY,vx:direction*speed,direction,w:letters*52,h:52,range:40+cost*70,travel:0,alive:true});
+  voiceAttacks.push({text:word,x:player.x+direction*38,y:launchY,vx:direction*speed,direction,w:letters*52,h:52,range:W*range,travel:0,alive:true});
+  spawnVoiceFog(player.x+direction*28,launchY-22,direction);
   spawnBurst(player.x+direction*30,launchY,"#ffe75a",8,.75);
 }
 
@@ -381,12 +385,12 @@ function makeEnemy(s) {
   };
 }
 function resetLevel() {
-  totalIbo=stageStartIbo;
+  totalScore=stageStartScore;totalIbo=stageStartIbo;
   level=buildLevel(stageIndex);musicTimer=0;musicStep=0;
-  Object.assign(player,{x:120,y:380,vx:0,vy:0,onGround:false,facing:1,hp:runMaxHp,maxHp:runMaxHp,inv:0,starTime:0,shotCd:0,score:0,dead:false,clear:false,_jumpLatch:false,_shotLatch:false,coyote:0,jumpBuffer:0,airPeakY:380,safeX:120,safeY:FLOOR_Y,recoil:0});
+  Object.assign(player,{x:120,y:380,vx:0,vy:0,onGround:false,facing:1,hp:runMaxHp,maxHp:runMaxHp,inv:0,starTime:0,shotCd:0,dead:false,clear:false,_jumpLatch:false,_shotLatch:false,coyote:0,jumpBuffer:0,airPeakY:380,safeX:120,safeY:FLOOR_Y,recoil:0});
   nextEnemyId=1;koeFirstShooterId=null;
   enemies=level.enemySpawns.map(makeEnemy);
-  shots=[];voiceAttacks=[];enemyShots=[];powerups=[];particles=[];rings=[];cameraX=0;clearPlayed=false;screenShake=0;goalPulse=0;
+  shots=[];voiceAttacks=[];enemyShots=[];powerups=[];particles=[];rings=[];voiceFog=[];cameraX=0;clearPlayed=false;screenShake=0;goalPulse=0;
   if(stageIndex===1&&koeItemState==="dropped"&&koeDropPosition)powerups.push({type:"koe",x:koeDropPosition.x,y:koeDropPosition.y,alive:true});
   syncVoiceUI();
   level.coins.forEach(c=>c.taken=false);
@@ -429,12 +433,31 @@ function spawnBurst(x,y,color,count=8,power=1){
 function spawnRing(x,y,color,radius=16){
   if(rings.length<24)rings.push({x,y,color,radius,life:360,maxLife:360});
 }
+function spawnVoiceFog(x,y,direction=1,impact=false){
+  const count=impact?6:4,life=impact?540:440;
+  for(let i=0;i<count&&voiceFog.length<48;i++){
+    const spread=(i-(count-1)/2)*8;
+    voiceFog.push({x:x+Math.random()*10*direction,y:y+spread,vx:direction*(.25+Math.random()*.55),vy:(Math.random()-.6)*.22,radius:(impact?15:12)+Math.random()*8,life,maxLife:life,grow:impact?.065:.045});
+  }
+}
 function dropKoeItem(enemy){
   if(stageIndex!==1||koeItemState!=="pending"||enemy.id!==koeFirstShooterId)return;
   koeItemState="dropped";koeDropPosition={x:enemy.x,y:enemy.y-50};
   powerups.push({type:"koe",x:koeDropPosition.x,y:koeDropPosition.y,alive:true});
   spawnBurst(enemy.x,enemy.y-50,"#bdefff",12,1);spawnRing(enemy.x,enemy.y-50,"#ff5d78",22);
   emitKoeEvent("spawned",{stage:stageIndex+1,x:koeDropPosition.x,y:koeDropPosition.y});
+}
+function awardScore(points){
+  totalScore+=points;saveHighScore();
+}
+function enemyScore(enemy){
+  const base={walker:1,hopper:2,flyer:3}[enemy.type]||1;
+  return base+(enemyCanShoot(enemy.type)?1:0);
+}
+function defeatEnemy(enemy){
+  if(!enemy.alive)return;
+  enemy.alive=false;dropKoeItem(enemy);awardScore(enemyScore(enemy));
+  if(koeItemState==="collected"){voiceEnergy=Math.min(VOICE_ENERGY_MAX,voiceEnergy+2);syncVoiceUI();}
 }
 
 function update(dt) {
@@ -463,8 +486,8 @@ function update(dt) {
 
   if(player.jumpBuffer>0 && player.coyote>0){
     player.vy=player.jump;player.onGround=false;player.airPeakY=player.y;player.coyote=0;player.jumpBuffer=0;sfx.jump();
-    // A low, warm dust puff plus a few bright sparks makes the take-off legible.
-    spawnBurst(player.x,player.y,"#c99a68",9,.75);spawnBurst(player.x,player.y,"#ffe4a6",4,.5);
+    // Keep the take-off dust subtle so it does not obscure the player.
+    spawnBurst(player.x,player.y,"#c99a68",5,.5);spawnBurst(player.x,player.y,"#ffe4a6",2,.35);
   }
 
   if ((keys["i"]||keys["z"]) && player.shotCd<=0 && !player._shotLatch) {
@@ -482,8 +505,8 @@ function update(dt) {
   if(!wasGrounded&&player.onGround&&player.vy===0){
     const fallDistance=Math.max(0,player.y-(player.airPeakY??player.y));
     const impact=clamp(.55+fallDistance/150,.55,2.1);
-    spawnBurst(player.x,player.y,"#c99a68",Math.round(7+impact*8),impact);
-    spawnBurst(player.x,player.y,"#fff0be",Math.round(2+impact*3),impact*.7);
+    spawnBurst(player.x,player.y,"#c99a68",Math.round(4+impact*4),impact*.65);
+    spawnBurst(player.x,player.y,"#fff0be",Math.round(1+impact*2),impact*.45);
     screenShake=Math.max(screenShake,Math.max(0,impact-1)*3);
     player.airPeakY=player.y;
   }
@@ -499,7 +522,7 @@ function update(dt) {
     if(c.taken) continue;
     const dx=player.x-c.x, dy=(player.y-player.h/2)-c.y;
     if(dx*dx+dy*dy<28*28){
-      c.taken=true;player.score++;totalIbo++;if(koeItemState==="collected"){voiceEnergy=Math.min(100,voiceEnergy+3);syncVoiceUI();}saveHighScore();sfx.coin();spawnBurst(c.x,c.y,"#ffd84d",6);
+      c.taken=true;totalIbo++;awardScore(2);if(koeItemState==="collected"){voiceEnergy=Math.min(VOICE_ENERGY_MAX,voiceEnergy+5);syncVoiceUI();}sfx.coin();spawnBurst(c.x,c.y,"#ffd84d",6);
       if(totalIbo%10===0&&!starMilestones.has(totalIbo)){
         starMilestones.add(totalIbo);
         if(Math.random()<.5)powerups.push({type:"star",x:clamp(c.x+player.facing*100,45,WORLD_W-45),y:Math.max(90,c.y-25),alive:true});
@@ -521,7 +544,7 @@ function update(dt) {
     if(dx*dx+dy*dy<34*34){
       item.alive=false;
       if(item.type==="koe"){
-        koeItemState="collected";koeDropPosition=null;syncVoiceUI();spawnBurst(item.x,item.y,"#c9f4ff",16,1.1);spawnRing(item.x,item.y,"#ff5d78",26);emitKoeEvent("collected",{stage:stageIndex+1});
+        koeItemState="collected";koeDropPosition=null;voiceEnergy=KOE_PICKUP_ENERGY;syncVoiceUI();spawnBurst(item.x,item.y,"#c9f4ff",16,1.1);spawnRing(item.x,item.y,"#ff5d78",26);emitKoeEvent("collected",{stage:stageIndex+1});
       }else if(item.type==="maxHeart"){
         runMaxHp++;player.maxHp=runMaxHp;player.hp=player.maxHp;sfx.maxHp();spawnBurst(item.x,item.y,"#ff4f78",26);
       }else{
@@ -561,8 +584,8 @@ function update(dt) {
     const pr=standingRect(player), er=standingRect(e);
     if(intersect(pr,er) && player.inv<=0){
       const playerBottom=pr.y+pr.h;
-      if(player.vy>2 && playerBottom-er.y<30){
-        e.alive=false;dropKoeItem(e);player.vy=-9;spawnBurst(e.x,e.y-35,"#f5d3a5",16,1.25);spawnRing(e.x,e.y-35,"#ffd59f",24);screenShake=Math.max(screenShake,4);sfx.hit();
+      if(e.type!=="hopper"&&player.vy>2 && playerBottom-er.y<30){
+        defeatEnemy(e);player.vy=-9;spawnBurst(e.x,e.y-35,"#f5d3a5",16,1.25);spawnRing(e.x,e.y-35,"#ffd59f",24);screenShake=Math.max(screenShake,4);sfx.hit();
       } else hurtPlayer(false);
     }
   }
@@ -570,8 +593,8 @@ function update(dt) {
   // shots
   for(const s of shots){
     if(!s.alive) continue;
-    const previousY=s.y,stepX=s.vx*f,remainingX=600-s.travelX,moveX=Math.sign(stepX)*Math.min(Math.abs(stepX),remainingX);
-    s.x+=moveX;s.travelX+=Math.abs(moveX);s.y+=s.vy*f;s.vy+=.10*f;
+    const previousY=s.y,moveX=s.vx*f;
+    s.x+=moveX;s.travelX+=Math.abs(moveX);s.y+=s.vy*f;s.vy+=.14*f;
     const shotRect={x:s.x-s.r,y:s.y-s.r,w:s.r*2,h:s.r*2};
     const hitPlatform=(s.vy>0&&previousY+s.r<=FLOOR_Y&&s.y+s.r>=FLOOR_Y)||level.platforms.some(p=>intersect(shotRect,p)||(s.vy>0&&previousY+s.r<=p.y&&s.y+s.r>=p.y&&s.x+s.r>p.x&&s.x-s.r<p.x+p.w));
     if(hitPlatform){s.alive=false;spawnBurst(s.x,s.y,"#cdb3ff",4);continue;}
@@ -579,10 +602,9 @@ function update(dt) {
     for(const e of enemies){
       if(!e.alive) continue;
       if(intersect(sr,standingRect(e))){
-        e.alive=false;s.alive=false;dropKoeItem(e);spawnBurst(e.x,e.y-35,"#8e55ff",18,1.35);spawnRing(e.x,e.y-35,"#d3b5ff",28);screenShake=Math.max(screenShake,5);sfx.hit();break;
+        defeatEnemy(e);s.alive=false;spawnBurst(e.x,e.y-35,"#8e55ff",18,1.35);spawnRing(e.x,e.y-35,"#d3b5ff",28);screenShake=Math.max(screenShake,5);sfx.hit();break;
       }
     }
-    if(s.alive&&s.travelX>=600){s.alive=false;spawnBurst(s.x,s.y,"#cdb3ff",4);}
   }
   shots=shots.filter(s=>s.alive);
 
@@ -594,8 +616,8 @@ function update(dt) {
     const vr={x:voice.direction<0?voice.x-voice.w:voice.x,y:voice.y-voice.h,w:voice.w,h:voice.h};
     const hitPlatform=level.platforms.some(p=>intersect(vr,p));
     let hitEnemy=false;
-    for(const e of enemies)if(e.alive&&intersect(vr,standingRect(e))){e.alive=false;dropKoeItem(e);hitEnemy=true;break;}
-    if(hitPlatform||hitEnemy){voice.alive=false;spawnBurst(voice.x,voice.y-24,"#ffe65a",18,1.45);spawnRing(voice.x,voice.y-24,"#ffe65a",22);continue;}
+    for(const e of enemies)if(e.alive&&intersect(vr,standingRect(e))){defeatEnemy(e);hitEnemy=true;break;}
+    if(hitPlatform||hitEnemy){voice.alive=false;if(hitEnemy)spawnVoiceFog(voice.x,voice.y-26,voice.direction,true);spawnBurst(voice.x,voice.y-24,"#ffe65a",18,1.45);spawnRing(voice.x,voice.y-24,"#ffe65a",22);continue;}
     if(voice.travel>=voice.range){voice.alive=false;spawnBurst(voice.x,voice.y-24,"#ffe65a",12,1);continue;}
     const screenX=voice.x-cameraX;
     if(voice.direction<0?screenX<-20:screenX>W+20)voice.alive=false;
@@ -614,8 +636,9 @@ function update(dt) {
 
   goalPulse+=dt;
   if (player.x>level.goalX) {
-    player.clear=true;setMode("clear");
-    if(!clearPlayed){clearPlayed=true;sfx.clear();spawnBurst(level.goalX,315,themes[stageIndex].mist,42,2);spawnRing(level.goalX,315,"#ffffff",72);screenShake=7;}
+    player.clear=true;
+    if(!clearPlayed){clearPlayed=true;awardScore(10);sfx.clear();spawnBurst(level.goalX,315,themes[stageIndex].mist,42,2);spawnRing(level.goalX,315,"#ffffff",72);screenShake=7;}
+    setMode("clear");
   }
 
   // camera follow
@@ -641,6 +664,8 @@ function updateParticles(f,dt){
   particles=particles.filter(p=>p.life>0);
   for(const ring of rings){ring.life-=dt;ring.radius+=f*1.2;}
   rings=rings.filter(ring=>ring.life>0);
+  for(const fog of voiceFog){fog.x+=fog.vx*f;fog.y+=fog.vy*f;fog.vy-=.003*f;fog.radius+=fog.grow*dt;fog.life-=dt;}
+  voiceFog=voiceFog.filter(fog=>fog.life>0);
 }
 
 // ---- draw ----
@@ -833,6 +858,10 @@ function drawParticles(){
     ctx.fillStyle=p.color;ctx.shadowColor=p.color;ctx.shadowBlur=7;ctx.fillRect(p.x-cameraX-p.size/2,p.y-p.size/2,p.size,p.size);
   }
   ctx.shadowBlur=0;
+  for(const fog of voiceFog){
+    const fade=Math.max(0,fog.life/fog.maxLife);
+    ctx.globalAlpha=fade*fade*.32;ctx.fillStyle="#ffe65a";ctx.beginPath();ctx.ellipse(fog.x-cameraX,fog.y,fog.radius*1.35,fog.radius,0,0,Math.PI*2);ctx.fill();
+  }
   for(const ring of rings){ctx.globalAlpha=Math.max(0,ring.life/ring.maxLife)*.8;ctx.strokeStyle=ring.color;ctx.lineWidth=2+ring.life/ring.maxLife*2;ctx.beginPath();ctx.arc(ring.x-cameraX,ring.y,ring.radius,0,Math.PI*2);ctx.stroke();}
   ctx.globalAlpha=1;
 }
@@ -840,9 +869,9 @@ function drawUI(){
   ctx.fillStyle="rgba(0,0,0,.35)"; ctx.fillRect(16,16,300,koeItemState==="collected"?94:72);
   ctx.fillStyle="#fff"; ctx.font="bold 20px Yu Gothic";
   ctx.fillText(`HP ${"♥".repeat(player.hp)}${"♡".repeat(player.maxHp-player.hp)}`,28,43);
-  ctx.fillText(`IBO ${String(totalIbo).padStart(3,"0")}  BEST ${String(highScore).padStart(3,"0")}`,28,72);
+  ctx.fillText(`SCORE ${String(totalScore).padStart(3,"0")}  BEST ${String(highScore).padStart(3,"0")}`,28,72);
   if(koeItemState==="collected"){
-    ctx.fillStyle="#513f24";ctx.fillRect(28,88,126,8);ctx.fillStyle="#ffe75a";ctx.fillRect(28,88,126*voiceEnergy/100,8);ctx.fillStyle="#fff5bd";ctx.font="bold 13px Yu Gothic";ctx.fillText(`声 ${voiceEnergy}`,162,95);
+    ctx.fillStyle="#513f24";ctx.fillRect(28,88,126,8);ctx.fillStyle="#ffe75a";ctx.fillRect(28,88,126*voiceEnergy/VOICE_ENERGY_MAX,8);ctx.fillStyle="#fff5bd";ctx.font="bold 13px Yu Gothic";ctx.fillText(`声 ${voiceEnergy}`,162,95);
   }
   const progress=Math.round(player.x/level.goalX*100);
   ctx.fillStyle="rgba(255,255,255,.28)"; ctx.fillRect(340,26,300,12);
