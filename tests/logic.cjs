@@ -15,9 +15,9 @@ for(const f of run('SPRITE_TILES.flat()')){assert(f.w>100&&f.h>150);assert(f.x>=
 assert.deepEqual(run('overlapCenter({x:10,y:20,w:30,h:20},{x:25,y:25,w:20,h:30})'),{x:32.5,y:32.5});
 for(const facing of [-1,1]){
  run(`resetLevel();level.platforms=[{x:0,y:455,w:5200,h:85}];enemies=[];mode="playing";player.x=500;player.y=455;player.onGround=true;player.facing=${facing};keys.i=true;update(16.6667);keys.i=false;var bullet=shots[0];var origin=bullet.x-bullet.vx;var launchVy=bullet.vy;var n=0;while(bullet.alive&&n++<160)update(16.6667);`);
- assert(run('Math.sign(launchVy)')===-1);assert(run('Math.abs(bullet.vx)<8.5'));assert(run('Math.abs(bullet.x-origin)>250'));assert.equal(run('bullet.alive'),false);
+ assert(run('Math.sign(launchVy)')===-1);assert(run('Math.abs(bullet.vx)<8.5'));assert(run('Math.abs(bullet.x-origin)>180'));assert.equal(run('bullet.alive'),false);
 }
-assert(!code.includes('remainingX=600'));assert(!code.includes('travelX>=600'));
+assert(!code.includes('remainingX=600'));assert(!code.includes('travelX>=600'));assert(code.includes('s.vy+=.20*f'));
 run('resetLevel();mode="playing";player.y=455;player.onGround=false;player.coyote=90;keys[" "]=true;update(16.6667)');assert(run('player.vy<0'));run('clearKeys()');
 run('resetLevel();mode="playing";player.y=455;player.onGround=false;player.coyote=90;keys.x=true;update(16.6667)');assert(run('player.vy<0'));run('clearKeys()');
 run('resetLevel();mode="playing";player.x=500;player.y=455;player.onGround=true;keys.z=true;update(16.6667)');assert.equal(run('shots.length'),1);run('clearKeys()');

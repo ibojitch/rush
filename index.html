@@ -600,7 +600,7 @@ function update(dt) {
   for(const s of shots){
     if(!s.alive) continue;
     const previousY=s.y,moveX=s.vx*f;
-    s.x+=moveX;s.travelX+=Math.abs(moveX);s.y+=s.vy*f;s.vy+=.14*f;
+    s.x+=moveX;s.travelX+=Math.abs(moveX);s.y+=s.vy*f;s.vy+=.20*f;
     const shotRect={x:s.x-s.r,y:s.y-s.r,w:s.r*2,h:s.r*2};
     const hitPlatform=(s.vy>0&&previousY+s.r<=FLOOR_Y&&s.y+s.r>=FLOOR_Y)||level.platforms.some(p=>intersect(shotRect,p)||(s.vy>0&&previousY+s.r<=p.y&&s.y+s.r>=p.y&&s.x+s.r>p.x&&s.x-s.r<p.x+p.w));
     if(hitPlatform){s.alive=false;spawnBurst(s.x,s.y,"#cdb3ff",4);continue;}
