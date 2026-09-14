@@ -1,10 +1,11 @@
 param(
-  [string]$Source = (Join-Path $PSScriptRoot "..\ibojigen_sprite_atlas_source_1774x887.png"),
+  [string]$Source = (Join-Path $PSScriptRoot "..\old\ibojigen_sprite_atlas_source_1774x887.png"),
+  [string]$KoeItem = (Join-Path $PSScriptRoot "..\old\koe-item_source_1254x1254.png"),
   [string]$Output = (Join-Path $PSScriptRoot "..\ibojigen_sprite_atlas_1280x456.png")
 )
 
 # Sprite atlas layout used by index.html:
-#   grid: 8 columns x 2 rows
+#   grid: 8 columns x 3 rows (the final row holds the KOE item)
 #   cell size / pitch: 160 x 228 px
 #   output size: 1280 x 456 px
 # Each source crop is placed bottom-centre in its cell. Keep this list in the
@@ -19,12 +20,14 @@ $frames = @(
 $cellWidth = 160
 $cellHeight = 228
 $columns = 8
-$rows = 2
+$rows = 3
 
 Add-Type -AssemblyName System.Drawing
 $sourcePath = [IO.Path]::GetFullPath($Source)
 $outputPath = [IO.Path]::GetFullPath($Output)
 $sourceImage = [Drawing.Bitmap]::FromFile($sourcePath)
+$koePath = [IO.Path]::GetFullPath($KoeItem)
+$koeImage = [Drawing.Bitmap]::FromFile($koePath)
 
 try {
   if ($sourceImage.Width -ne 1774 -or $sourceImage.Height -ne 887) {
@@ -52,6 +55,10 @@ try {
         $sourceRectangle = New-Object Drawing.Rectangle $x, $y, $w, $h
         $graphics.DrawImage($sourceImage, $destination, $sourceRectangle, [Drawing.GraphicsUnit]::Pixel)
       }
+
+      # Preserve the KOE bottle's displayed 40:58 aspect ratio in the first cell of the final row.
+      $koeDestination = New-Object Drawing.Rectangle 24, 524, 112, 160
+      $graphics.DrawImage($koeImage, $koeDestination)
     } finally {
       $graphics.Dispose()
     }
@@ -71,7 +78,8 @@ try {
     $atlas.Dispose()
   }
 } finally {
-  $sourceImage.Dispose()
+  if ($null -ne $sourceImage) { $sourceImage.Dispose() }
+  if ($null -ne $koeImage) { $koeImage.Dispose() }
 }
 
-Write-Output "Created $outputPath (1280x456, cell/pitch 160x228)."
+Write-Output "Created $outputPath (1280x684, cell/pitch 160x228)."

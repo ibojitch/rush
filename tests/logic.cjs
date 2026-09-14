@@ -7,11 +7,12 @@ function el(id){if(!elements.has(id))elements.set(id,{width:960,height:540,hidde
 const sandbox={console,Math,performance:{now:()=>1000},setTimeout:()=>0,requestAnimationFrame:()=>0,Image:class{},localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v)},addEventListener(type,fn){(handlers[type]??=[]).push(fn)},document:{getElementById:el,addEventListener(){},querySelectorAll:()=>[]},window:{}};
 vm.createContext(sandbox);vm.runInContext(code,sandbox);
 function run(code){return vm.runInContext(code,sandbox)}
-run('atlasReady=true;atlas.naturalWidth=1280;atlas.naturalHeight=456;mode="playing";');
+run('atlasReady=true;atlas.naturalWidth=1280;atlas.naturalHeight=684;mode="playing";');
 assert.equal(run('SPRITE_TILES.flat().length'),16);
 assert.equal(run('new Set(SPRITE_TILES.flat().map(f=>f.name)).size'),16);
-assert.equal(run('SPRITE_ATLAS.width'),1280);assert.equal(run('SPRITE_ATLAS.height'),456);run('render()');
-for(const f of run('SPRITE_TILES.flat()')){assert(f.w>100&&f.h>150);assert(f.x>=0&&f.y>=0);assert(f.x+f.w<=1280&&f.y+f.h<=456)}
+assert.equal(run('SPRITE_ATLAS.width'),1280);assert.equal(run('SPRITE_ATLAS.height'),684);assert.equal(run('KOE_TILE.y'),524);run('render()');
+for(const f of run('SPRITE_TILES.flat()')){assert(f.w>100&&f.h>150);assert(f.x>=0&&f.y>=0);assert(f.x+f.w<=1280&&f.y+f.h<=684)}
+assert.deepEqual(run('overlapCenter({x:10,y:20,w:30,h:20},{x:25,y:25,w:20,h:30})'),{x:32.5,y:32.5});
 for(const facing of [-1,1]){
  run(`resetLevel();level.platforms=[{x:0,y:455,w:5200,h:85}];enemies=[];mode="playing";player.x=500;player.y=455;player.onGround=true;player.facing=${facing};keys.i=true;update(16.6667);keys.i=false;var bullet=shots[0];var origin=bullet.x-bullet.vx;var launchVy=bullet.vy;var n=0;while(bullet.alive&&n++<160)update(16.6667);`);
  assert(run('Math.sign(launchVy)')===-1);assert(run('Math.abs(bullet.vx)<8.5'));assert(run('Math.abs(bullet.x-origin)>250'));assert.equal(run('bullet.alive'),false);
@@ -32,6 +33,7 @@ run('togglePause()');assert.equal(run('mode'),'paused');const x=run('player.x');
 for(let i=0;i<5;i++){run(`stageIndex=${i};resetLevel();mode="playing";player.inv=100000;for(let n=0;n<600;n++)update(16.6667);render()`);assert(run('enemies.every(e=>Number.isFinite(e.x)&&Number.isFinite(e.y))'));}
 assert.equal(run('enemyCanShoot("walker",0)'),false);assert.equal(run('enemyCanShoot("hopper",1)'),true);assert.equal(run('enemyCanShoot("flyer",1)'),false);assert.equal(run('enemyCanShoot("hopper",2)'),true);assert.equal(run('enemyCanShoot("flyer",2)'),true);assert.equal(run('enemyCanShoot("walker",2)'),false);assert.equal(run('enemyCanShoot("walker",3)'),true);assert.equal(run('beamTuning(3).speed<beamTuning(4).speed'),true);assert.equal(run('beamTuning(3).cooldown>beamTuning(4).cooldown'),true);
 run('stageIndex=1;resetLevel();mode="playing";const horned=enemies.find(e=>e.type==="hopper");player.x=horned.x;player.y=horned.y-player.h+12;player.vy=5;player.inv=0;update(0)');assert.equal(run('horned.alive'),true);assert.equal(run('player.hp'),2);
+run('stageIndex=1;resetLevel();mode="playing";const starHorned=enemies.find(e=>e.type==="hopper");player.x=starHorned.x;player.y=starHorned.y;player.starTime=8000;const starHp=player.hp;update(0)');assert.equal(run('starHorned.alive'),false);assert.equal(run('player.hp'),run('starHp'));
 run('muted=true;stageIndex=1;resetLevel();mode="playing";const shooter=enemies.find(e=>e.type==="hopper");player.x=700;player.y=455;shooter.x=400;shooter.y=455;shooter.onGround=true;shooter.beamCd=0;update(16.6667)');assert(run('enemyShots.length>0'));
 // Stage 2's first firing enemy drops KOE. Collection survives stages and continues, but a fresh run resets it.
 run('dropKoeItem(shooter)');assert.equal(run('koeItemState'),'dropped');assert.equal(run('powerups.filter(p=>p.type==="koe").length'),1);

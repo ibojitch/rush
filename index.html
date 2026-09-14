@@ -43,8 +43,8 @@ let WORLD_W = 5200;
 const STAGE_COUNT = 5;
 /*
  * SPRITE ATLAS SPECIFICATION
- * File: ibojigen_sprite_atlas_1280x456.png (actual size: 1280 x 456 px)
- * Grid: 8 columns x 2 rows; cell size = pitch = 160 x 228 px; gutter = 0 px.
+ * File: ibojigen_sprite_atlas_1280x456.png (actual size: 1280 x 684 px)
+ * Grid: 8 columns x 3 rows; cell size = pitch = 160 x 228 px; gutter = 0 px.
  * Origin: top-left. Tiles are stored bottom-centre in each cell.
  * Rows: 0 = player (native facing right), 1 = enemy (native facing left).
  * Columns/animation: 0 idle A, 1 idle B, 2-5 run A-D, 6 jump/up, 7 fall/down.
@@ -52,7 +52,8 @@ const STAGE_COUNT = 5;
  * cell alignment or artwork requires updating these bounds as well.
  * Rebuild command: powershell -File tools/repack_sprite_atlas.ps1
  */
-const SPRITE_ATLAS = Object.freeze({width:1280,height:456,columns:8,rows:2,cellWidth:160,cellHeight:228,pitchX:160,pitchY:228,gutter:0});
+const SPRITE_ATLAS = Object.freeze({width:1280,height:684,columns:8,rows:3,cellWidth:160,cellHeight:228,pitchX:160,pitchY:228,gutter:0});
+const KOE_TILE = Object.freeze({x:24,y:524,w:112,h:160});
 const SPRITE_TILES = [
   [
     {name:"player_idle_a",x:6,y:19,w:148,h:209},
@@ -99,10 +100,6 @@ let atlasReady = false;
 atlas.onload = () => { atlasReady = true; };
 atlas.onerror = () => { document.getElementById("status").textContent="キャラ画像を読み込めません。再読み込みしてください。"; };
 atlas.src = "ibojigen_sprite_atlas_1280x456.png";
-const koeItemImage = new Image();
-let koeItemReady = false;
-koeItemImage.onload = () => { koeItemReady = true; };
-koeItemImage.src = "koe-item.png";
 
 const keys = Object.create(null);
 addEventListener("keydown", e => {
@@ -212,6 +209,11 @@ const sfx = {
 // ---- helpers ----
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const intersect=(a,b)=>a.x<b.x+b.w && a.x+a.w>b.x && a.y<b.y+b.h && a.y+a.h>b.y;
+function overlapCenter(a,b){
+  const left=Math.max(a.x,b.x),right=Math.min(a.x+a.w,b.x+b.w);
+  const top=Math.max(a.y,b.y),bottom=Math.min(a.y+a.h,b.y+b.h);
+  return {x:(left+right)/2,y:(top+bottom)/2};
+}
 
 const baseLevel = {
   platforms: [
@@ -582,11 +584,15 @@ function update(dt) {
       }
     }
     const pr=standingRect(player), er=standingRect(e);
-    if(intersect(pr,er) && player.inv<=0){
-      const playerBottom=pr.y+pr.h;
-      if(e.type!=="hopper"&&player.vy>2 && playerBottom-er.y<30){
-        defeatEnemy(e);player.vy=-9;spawnBurst(e.x,e.y-35,"#f5d3a5",16,1.25);spawnRing(e.x,e.y-35,"#ffd59f",24);screenShake=Math.max(screenShake,4);sfx.hit();
-      } else hurtPlayer(false);
+    if(intersect(pr,er)){
+      if(player.starTime>0){
+        defeatEnemy(e);player.vy=-6;spawnBurst(e.x,e.y-35,"#ffe45e",22,1.45);spawnRing(e.x,e.y-35,"#ffe45e",30);screenShake=Math.max(screenShake,5);sfx.hit();
+      }else if(player.inv<=0){
+        const playerBottom=pr.y+pr.h;
+        if(e.type!=="hopper"&&player.vy>2 && playerBottom-er.y<30){
+          defeatEnemy(e);player.vy=-9;spawnBurst(e.x,e.y-35,"#f5d3a5",16,1.25);spawnRing(e.x,e.y-35,"#ffd59f",24);screenShake=Math.max(screenShake,4);sfx.hit();
+        } else hurtPlayer(false);
+      }
     }
   }
 
@@ -615,9 +621,12 @@ function update(dt) {
     voice.x+=moveX;voice.travel+=Math.abs(moveX);
     const vr={x:voice.direction<0?voice.x-voice.w:voice.x,y:voice.y-voice.h,w:voice.w,h:voice.h};
     const hitPlatform=level.platforms.some(p=>intersect(vr,p));
-    let hitEnemy=false;
-    for(const e of enemies)if(e.alive&&intersect(vr,standingRect(e))){defeatEnemy(e);hitEnemy=true;break;}
-    if(hitPlatform||hitEnemy){voice.alive=false;if(hitEnemy)spawnVoiceFog(voice.x,voice.y-26,voice.direction,true);spawnBurst(voice.x,voice.y-24,"#ffe65a",18,1.45);spawnRing(voice.x,voice.y-24,"#ffe65a",22);continue;}
+    let hitEnemy=false,hitPoint=null;
+    for(const e of enemies){
+      const enemyRect=standingRect(e);
+      if(e.alive&&intersect(vr,enemyRect)){hitPoint=overlapCenter(vr,enemyRect);defeatEnemy(e);hitEnemy=true;break;}
+    }
+    if(hitPlatform||hitEnemy){voice.alive=false;if(hitEnemy)spawnVoiceFog(hitPoint.x,hitPoint.y,voice.direction,true);spawnBurst(voice.x,voice.y-24,"#ffe65a",18,1.45);spawnRing(voice.x,voice.y-24,"#ffe65a",22);continue;}
     if(voice.travel>=voice.range){voice.alive=false;spawnBurst(voice.x,voice.y-24,"#ffe65a",12,1);continue;}
     const screenX=voice.x-cameraX;
     if(voice.direction<0?screenX<-20:screenX>W+20)voice.alive=false;
@@ -800,7 +809,7 @@ function drawPowerups(){
     ctx.save();ctx.translate(x,y);
     if(item.type==="koe"){
       ctx.rotate(Math.sin(performance.now()/550+item.x)*.08);ctx.shadowColor="#ff5d78";ctx.shadowBlur=16;
-      if(koeItemReady)ctx.drawImage(koeItemImage,-20,-29,40,58);
+      if(atlasReady)ctx.drawImage(atlas,KOE_TILE.x,KOE_TILE.y,KOE_TILE.w,KOE_TILE.h,-20,-29,40,58);
       else{ctx.fillStyle="#c9f4ff";ctx.fillRect(-12,-17,24,34);ctx.fillStyle="#ff5d78";ctx.fillRect(-14,-23,28,8);}
       ctx.restore();continue;
     }

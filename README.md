@@ -33,9 +33,9 @@ GitHub Pagesでも外部ライブラリなしで動作する構成です。
 
 ## 構造と素材
 
-現在は1つのHTML内で関数ごとに処理を分けています。`SPRITE_ATLAS` が画像サイズ・セル・ピッチの仕様、`SPRITE_TILES` が全16コマの名前と矩形、`themes` が背景と音、`buildLevel` が配置、`makeEnemy` が敵の初期値です。
+現在は1つのHTML内で関数ごとに処理を分けています。`SPRITE_ATLAS` が画像サイズ・セル・ピッチの仕様、`SPRITE_TILES` が全16コマの名前と矩形、`KOE_TILE` がKOEアイテムの矩形、`themes` が背景と音、`buildLevel` が配置、`makeEnemy` が敵の初期値です。
 
-元画像は `ibojigen_sprite_atlas_source_1774x887.png` として保存しています。Windows PowerShellで `powershell -File tools/repack_sprite_atlas.ps1` を実行すると、ゲーム用の `ibojigen_sprite_atlas_1280x456.png` を再生成できます。配置順や元画像の切り出し範囲を変える場合は、スクリプトの `$frames` と `index.html` の `SPRITE_TILES` を同時に更新してください。外部ライブラリは不要です。
+元画像は `ibojigen_sprite_atlas_source_1774x887.png` として保存しています。Windows PowerShellで `powershell -File tools/repack_sprite_atlas.ps1` を実行すると、KOEを下段へ統合したゲーム用の `ibojigen_sprite_atlas_1280x456.png`（実画像は1280×684）を再生成できます。配置順や元画像の切り出し範囲を変える場合は、スクリプトの `$frames` と `index.html` の `SPRITE_TILES` を同時に更新してください。外部ライブラリは不要です。
 
 ## 検証
 
