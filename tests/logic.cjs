@@ -13,6 +13,7 @@ assert.equal(run('new Set(SPRITE_TILES.flat().map(f=>f.name)).size'),16);
 assert.equal(run('SPRITE_ATLAS.width'),1280);assert.equal(run('SPRITE_ATLAS.height'),684);assert.equal(run('KOE_TILE.y'),524);run('render()');
 for(const f of run('SPRITE_TILES.flat()')){assert(f.w>100&&f.h>150);assert(f.x>=0&&f.y>=0);assert(f.x+f.w<=1280&&f.y+f.h<=684)}
 assert.deepEqual(run('overlapCenter({x:10,y:20,w:30,h:20},{x:25,y:25,w:20,h:30})'),{x:32.5,y:32.5});
+assert(run('shotTrailEndpoints({x:500,y:200,vx:7,vy:0}).tailX<500'));assert(run('shotTrailEndpoints({x:500,y:200,vx:-7,vy:0}).tailX>500'));
 for(const facing of [-1,1]){
  run(`resetLevel();level.platforms=[{x:0,y:455,w:5200,h:85}];enemies=[];mode="playing";player.x=500;player.y=455;player.onGround=true;player.facing=${facing};keys.i=true;update(16.6667);keys.i=false;var bullet=shots[0];var origin=bullet.x-bullet.vx;var launchVy=bullet.vy;var n=0;while(bullet.alive&&n++<160)update(16.6667);`);
  assert(run('Math.sign(launchVy)')===-1);assert(run('Math.abs(bullet.vx)<8.5'));assert(run('Math.abs(bullet.x-origin)>180'));assert.equal(run('bullet.alive'),false);
