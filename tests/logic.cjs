@@ -16,11 +16,15 @@ assert.deepEqual(run('overlapCenter({x:10,y:20,w:30,h:20},{x:25,y:25,w:20,h:30})
 assert(run('shotTrailEndpoints({x:500,y:200,vx:7,vy:0}).tailX<500'));assert(run('shotTrailEndpoints({x:500,y:200,vx:-7,vy:0}).tailX>500'));
 assert.equal(run('shotItemState'),'pending');run('resetLevel();mode="playing";keys.i=true;update(16.6667);keys.i=false');assert.equal(run('shots.length'),0);assert.equal(el('shot').hidden,true);assert(!el('controlsHelp').textContent.includes('ミサイル'));assert(el('controlsHelp').textContent.includes('C コンティニュー（GAME OVER時）'));run('shotItemState="collected";syncShotUI();syncControlsHelp()');assert(el('controlsHelp').textContent.includes('I / Z ミサイル'));
 assert.equal(run('typeof sfx.shotUnlock'),'function');
+assert.equal(run('typeof sfx.voiceAttack'),'function');
+run('stompKills=0;koeItemState="pending";shotItemState="pending"');assert(run('gameOverHintCandidates(false)').includes('敵は 上からふみつけて たおすことができるぞ'));assert(!run('gameOverHintCandidates(false)').some(h=>h.includes('ボタンをおす長さ')));assert(run('gameOverHintCandidates(false)').some(h=>h.includes('干し芋')));
+run('stompKills=1;koeItemState="collected";shotItemState="collected"');assert(!run('gameOverHintCandidates(true)').some(h=>h.includes('ふみつけて')));assert(run('gameOverHintCandidates(true)').some(h=>h.includes('ボタンをおす長さ')));assert(run('gameOverHintCandidates(true)').some(h=>h.includes('強い声')));
 for(const facing of [-1,1]){
  run(`resetLevel();level.platforms=[{x:0,y:455,w:5200,h:85}];enemies=[];mode="playing";player.x=500;player.y=455;player.onGround=true;player.facing=${facing};keys.i=true;update(16.6667);keys.i=false;var bullet=shots[0];var origin=bullet.x-bullet.vx;var launchVy=bullet.vy;var n=0;while(bullet.alive&&n++<160)update(16.6667);`);
  assert(run('Math.sign(launchVy)')===-1);assert(run('Math.abs(bullet.vx)<8.5'));assert(run('Math.abs(bullet.x-origin)>180'));assert.equal(run('bullet.alive'),false);
 }
 assert(!code.includes('remainingX=600'));assert(!code.includes('travelX>=600'));assert(code.includes('s.vy+=.20*f'));
+assert(!code.includes('previousY+s.r<=FLOOR_Y'));
 run('resetLevel();mode="playing";player.y=455;player.onGround=false;player.coyote=90;keys[" "]=true;update(16.6667)');assert(run('player.vy<0'));run('clearKeys()');
 run('resetLevel();mode="playing";player.y=455;player.onGround=false;player.coyote=90;keys.x=true;update(16.6667)');assert(run('player.vy<0'));run('clearKeys()');
 run('resetLevel();mode="playing";player.x=500;player.y=455;player.onGround=true;keys.z=true;update(16.6667)');assert.equal(run('shots.length'),1);run('clearKeys()');
@@ -46,8 +50,9 @@ run('stageIndex=1;resetLevel();mode="playing";const shotEnemy=enemies.find(e=>e.
 run('const shotItem=powerups.find(p=>p.type==="shot");player.x=shotItem.x;player.y=shotItem.y+player.h/2;update(0)');assert.equal(run('shotItemState'),'collected');assert.equal(el('shot').hidden,false);
 run('stageIndex=2;resetLevel()');assert.equal(run('koeItemState'),'collected');assert.equal(run('shotItemState'),'collected');
 run('restartCurrentStage()');assert.equal(run('koeItemState'),'collected');assert.equal(run('shotItemState'),'collected');
-run('mode="playing";player.facing=1;voiceEnergy=VOICE_ENERGY_MAX;voiceAttacks=[];voiceFog=[];fireVoiceAttack("p");var shortVoice=voiceAttacks[0];fireVoiceAttack("v")');assert.equal(run('shortVoice.text'),'プ');assert(run('shortVoice.vx<0'));assert.equal(run('shortVoice.range'),run('W*.30'));assert.equal(run('voiceEnergy'),94);assert.equal(run('voiceAttacks.length'),1);assert.equal(run('voiceFog.length'),4);
+run('mode="playing";player.facing=1;voiceEnergy=VOICE_ENERGY_MAX;voiceAttacks=[];voiceFog=[];fireVoiceAttack("p");var shortVoice=voiceAttacks[0];fireVoiceAttack("v")');assert.equal(run('shortVoice.text'),'プ');assert(run('shortVoice.vx<0'));assert.equal(run('shortVoice.range'),run('W*.30'));assert.equal(run('voiceEnergy'),92);assert.equal(run('voiceAttacks.length'),1);assert.equal(run('voiceFog.length'),4);
 run('voiceAttacks=[];fireVoiceAttack("v");var longVoice=voiceAttacks[0]');assert.equal(run('longVoice.text'),'ヴリヴリブー');assert(run('Math.abs(longVoice.vx)<Math.abs(shortVoice.vx)'));assert.equal(run('longVoice.range'),run('W*.70'));
+run('mode="playing";koeItemState="collected";voiceEnergy=7;voiceAttacks=[];voiceFog=[];fireVoiceAttack("p")');assert.equal(run('voiceAttacks.length'),0);assert.equal(run('voiceFog.length'),4);assert.equal(run('voiceFog[0].color'),'#ffffff');assert.equal(el('voice').disabled,false);
 run('voiceAttacks=[];level.platforms=[{x:0,y:300,w:5200,h:85}];player.x=500;player.y=307;player.facing=1;voiceEnergy=VOICE_ENERGY_MAX;fireVoiceAttack("p");update(0)');assert.equal(run('voiceAttacks.length'),1);
 run('startFromStageOne()');assert.equal(run('koeItemState'),'pending');assert.equal(run('shotItemState'),'pending');assert.equal(el('shot').hidden,true);
 run('stageIndex=0;resetLevel();mode="playing";enemies=[];player.hp=2;player.x=level.hearts[0].x;player.y=level.hearts[0].y+player.h/2;update(0)');assert.equal(run('player.hp'),3);assert(run('level.hearts[0].taken'));
@@ -59,7 +64,8 @@ run('stageIndex=0;mode="dead";setMode("dead")');assert.equal(el('retry').hidden,
 run('stageIndex=2;totalScore=18;stageStartScore=12;totalIbo=18;stageStartIbo=12;runMaxHp=4;mode="dead";setMode("dead")');assert.equal(el('retry').hidden,false);assert.equal(el('retry').textContent,'コンティニュー');el('retry').click();assert.equal(run('stageIndex'),2);assert.equal(run('totalScore'),0);assert.equal(run('totalIbo'),0);assert.equal(run('mode'),'playing');assert.equal(run('player.maxHp'),4);
 run('stageIndex=3;totalScore=27;stageStartScore=20;totalIbo=27;stageStartIbo=20;runMaxHp=4;mode="playing"');handlers.keydown.forEach(fn=>fn({key:'r',repeat:false,preventDefault(){}}));assert.equal(run('stageIndex'),0);assert.equal(run('totalScore'),0);assert.equal(run('totalIbo'),0);assert.equal(run('player.maxHp'),3);
 assert.equal(run('VOICE_ENERGY_MAX'),100);assert.equal(run('KOE_PICKUP_ENERGY'),50);assert.equal(run('enemyScore({type:"walker"})'),1);assert.equal(run('enemyScore({type:"hopper"})'),2);assert.equal(run('enemyScore({type:"flyer"})'),3);assert.equal(run('stageIndex=1;enemyScore({type:"hopper"})'),3);assert.equal(run('stageIndex=2;enemyScore({type:"flyer"})'),4);
-run('stageIndex=0;stageStartScore=0;resetLevel();mode="playing";koeItemState="collected";voiceEnergy=43;const target={type:"walker",alive:true,id:-1};defeatEnemy(target)');assert.equal(run('totalScore'),1);assert.equal(run('voiceEnergy'),45);
+run('stageIndex=0;stageStartScore=0;resetLevel();mode="playing";koeItemState="collected";voiceEnergy=43;const target={type:"walker",alive:true,id:-1};defeatEnemy(target)');assert.equal(run('totalScore'),1);assert.equal(run('voiceEnergy'),44);
+assert.equal(run('VOICE_WORDS.p.cost'),8);assert.equal(run('VOICE_WORDS.s.cost'),12);assert.equal(run('VOICE_WORDS.b.cost'),20);assert.equal(run('VOICE_WORDS.v.cost'),30);
 // All intended jumps fit the player's maximum rise. Reachability of the primary route.
 run('stageIndex=0;resetLevel();mode="playing";shotItemState="collected";syncShotUI();player.y=455;player.onGround=true;keys.arrowright=true');
 let finished=false;for(let i=0;i<1800;i++){

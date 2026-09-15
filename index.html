@@ -13,7 +13,7 @@
   #screen{position:relative;isolation:isolate}canvas{display:block;width:100%;height:auto;border-radius:18px;box-shadow:0 20px 70px #0007;touch-action:none}
   #hud{display:flex;justify-content:space-between;gap:12px;font-size:12px;color:#b7abd1;padding:12px 4px}
   #mobile{display:none;position:absolute;inset:0;pointer-events:none;align-items:flex-end;justify-content:space-between;padding:18px 22px;z-index:2}.pad{display:flex;gap:12px}#mobile button{pointer-events:auto;width:62px;height:62px;padding:0;background:#20172b70;border:2px solid #ffffff70;border-radius:50%;font-size:24px;font-weight:800;user-select:none;-webkit-user-select:none}#mobile button.pressed{background:#aa79edb0;transform:scale(.94)}#mobile #jump{width:76px;height:76px;background:#7348b699}#mobile #shot,#mobile #voice{font-size:16px;align-self:flex-end}#mobile #voice{background:#f5bd40b8;font-size:14px}#stick{pointer-events:auto;position:relative;width:116px;height:116px;border:2px solid #ffffff55;border-radius:50%;background:radial-gradient(circle,#7c6ba344 0 38%,#20172b66 40%);box-shadow:inset 0 0 20px #ffffff22;touch-action:none}#stick::before,#stick::after{content:"";position:absolute;background:#ffffff25;left:50%;top:50%;transform:translate(-50%,-50%)}#stick::before{width:74px;height:2px}#stick::after{width:2px;height:74px}#stickKnob{position:absolute;left:50%;top:50%;width:52px;height:52px;margin:-26px;border:2px solid #ffffffa8;border-radius:50%;background:#b78cf080;box-shadow:0 3px 12px #0005;transition:transform .05s ease-out;pointer-events:none}
-  #overlay{position:absolute;inset:0;z-index:3;display:grid;place-items:center;border-radius:18px;background:#18132980;backdrop-filter:blur(6px)}#overlay[hidden]{display:none}.card{text-align:center;max-width:520px;padding:25px}.eyebrow{color:#b5f5cf;font-size:11px;letter-spacing:.25em}.card h1{font-size:clamp(25px,5vw,48px);margin:12px 0}.card p{color:#f0e9fa;line-height:1.7;font-size:14px}.primary{background:#b5f5cf;color:#222033;border:0;font-weight:800;padding:13px 28px}.primary:hover{background:#d2ffe3}.secondary{margin-left:8px}#rotate{display:none}
+  #overlay{position:absolute;inset:0;z-index:3;display:grid;place-items:center;border-radius:18px;background:#18132980;backdrop-filter:blur(6px)}#overlay[hidden]{display:none}.card{text-align:center;max-width:520px;padding:25px}.eyebrow{color:#b5f5cf;font-size:11px;letter-spacing:.25em}.card h1{font-size:clamp(25px,5vw,48px);margin:12px 0}.card p{color:#f0e9fa;line-height:1.7;font-size:14px;white-space:pre-line}.primary{background:#b5f5cf;color:#222033;border:0;font-weight:800;padding:13px 28px}.primary:hover{background:#d2ffe3}.secondary{margin-left:8px}#rotate{display:none}
   @media(pointer:coarse){#mobile{display:flex}#hud .help{display:none}}
   @media(max-height:600px) and (orientation:landscape){#wrap{width:min(100vw,calc((100dvh - 42px)*16/9));padding:0}.mast{height:36px;margin:0;padding:0 8px}.brand{font-size:12px}.brand small,#hud{display:none}.tools button{padding:4px 10px;font-size:12px}canvas,#overlay{border-radius:0}#mobile{padding:10px 18px}.card{padding:10px}.card h1{margin:7px 0}.card p{margin:8px 0}}
   @media(orientation:portrait) and (pointer:coarse){#rotate{display:grid;position:fixed;inset:0;z-index:10;place-content:center;text-align:center;background:#17152ef5;padding:30px;font-size:20px}}
@@ -26,7 +26,7 @@
   <div id="screen">
     <canvas id="game" width="960" height="540" aria-label="いぼ次元ラッシュ ゲーム画面"></canvas>
     <div id="mobile"><div class="pad"><div id="stick" role="slider" aria-label="移動スティック" aria-valuemin="-1" aria-valuemax="1" aria-valuenow="0"><div id="stickKnob"></div></div></div><div class="pad"><button id="voice" aria-label="声攻撃" hidden>声</button><button id="shot" aria-label="ミサイル" hidden>SHOT</button><button id="jump" aria-label="ジャンプ">↑</button></div></div>
-    <div id="overlay"><div class="card"><div class="eyebrow" id="eyebrow">A LITTLE HERO. A COLORFUL JOURNEY.</div><h1 id="heading">いぼ次元ラッシュ</h1><p id="message">走って、跳んで、いぼミサイル！<br>5つの景色をめぐる、小さな冒険。<br><strong id="highscore">HIGH SCORE · IBO 000</strong></p><button class="primary" id="action">あそぶ</button><button class="secondary" id="retry" hidden>もう一度</button></div></div>
+    <div id="overlay"><div class="card"><div class="eyebrow" id="eyebrow">A LITTLE HERO. A COLORFUL JOURNEY.</div><h1 id="heading">いぼ次元ラッシュ</h1><p id="message">走って、跳んで、声こうげき！<br>5つの景色をめぐる、小さな冒険。<br><strong id="highscore">HIGH SCORE · IBO 000</strong></p><button class="primary" id="action">あそぶ</button><button class="secondary" id="retry" hidden>もう一度</button></div></div>
   </div>
   <div id="hud"><span class="help" id="controlsHelp"></span><span id="status">v0.60 · COLOR TRAIL</span></div>
 </div><div id="rotate">↻<br>横向きにして遊んでね</div>
@@ -192,6 +192,13 @@ const sfx = {
   jump:()=>{voice(250,620,.14,"square",.12,{cutoff:2600});voice(500,900,.10,"sine",.07,{delay:.025});},
   shot:()=>{voice(1050,170,.11,"sawtooth",.10,{cutoff:4200,cutoffEnd:500});voice(1700,420,.07,"square",.055);noise(.07,.045,{cutoff:1600});},
   shotUnlock:()=>{[523.25,659.25,783.99].forEach((f,i)=>voice(f,f,.16,"triangle",.11,{delay:i*.07,cutoff:3600}));},
+  voiceFail:()=>{voice(190,95,.10,"sine",.045,{cutoff:750,cutoffEnd:280});noise(.05,.018,{cutoff:1200});},
+  voiceAttack:(kind)=>{
+    if(kind==="p"){voice(760,380,.09,"square",.075,{cutoff:3200});noise(.045,.022,{cutoff:2600});}
+    else if(kind==="s"){noise(.20,.04,{cutoff:4200});voice(980,640,.16,"triangle",.035,{cutoff:3000});}
+    else if(kind==="b"){[0,.075,.15].forEach((delay,i)=>voice(180-i*18,105-i*12,.11,"square",.06,{delay,cutoff:1100}));}
+    else {voice(105,48,.36,"sawtooth",.09,{cutoff:850,cutoffEnd:260});[0,.08,.16,.24].forEach((delay,i)=>voice(180-i*20,105-i*12,.10,"triangle",.035,{delay,cutoff:900}));}
+  },
   hit:()=>{voice(190,55,.18,"sawtooth",.14,{cutoff:1300,cutoffEnd:250});voice(95,45,.22,"square",.07);noise(.12,.075,{cutoff:420});},
   coin:()=>{voice(740,740,.09,"square",.09,{cutoff:3600});voice(1110,1110,.12,"triangle",.08,{delay:.065});voice(1480,1480,.16,"sine",.045,{delay:.12});},
   heal:()=>{[523.25,659.25,783.99].forEach((f,i)=>voice(f,f*1.01,.24,"sine",.08,{delay:i*.07,attack:.02}));},
@@ -273,14 +280,15 @@ function setMode(next){
  if(next==="paused"){title.textContent="ちょっと休憩";message.textContent="準備ができたら、冒険の続きを。";action.textContent="つづける";}
  if(next==="dead"){
    title.textContent="もう一度、いこう！";action.textContent="ステージ1から";
-   message.textContent=stageIndex>0?"ステージ1からリトライするか、SCORE 0でこのステージからコンティニューできます。":"ステージ1からリトライします。";
+   const retryMessage=stageIndex>0?"ステージ1からリトライするか、SCORE 0でこのステージからコンティニューできます。":"ステージ1からリトライします。";
+   message.textContent=`${retryMessage}\n\nヒント：${selectGameOverHint()}`;
    retry.textContent="コンティニュー";
  }
  if(next==="clear"){title.textContent=stageIndex===STAGE_COUNT-1?"冒険、コンプリート！":"STAGE CLEAR!";message.textContent=`${themes[stageIndex].name} · SCORE ${totalScore}`;action.textContent=stageIndex===STAGE_COUNT-1?"最初から遊ぶ":"次のステージへ";retry.textContent="ステージ1から";}
 }
 function togglePause(){if(mode==="playing")setMode("paused");else if(mode==="paused")setMode("playing");}
 function startFromStageOne(){
-  stageIndex=0;totalScore=0;stageStartScore=0;totalIbo=0;stageStartIbo=0;runMaxHp=3;starMilestones.clear();koeItemState="pending";koeDropPosition=null;koeDropStage=null;shotItemState="pending";shotDropPosition=null;shotDropStage=null;voiceEnergy=VOICE_ENERGY_MAX;resetLevel();setMode("playing");
+  stageIndex=0;totalScore=0;stageStartScore=0;totalIbo=0;stageStartIbo=0;runMaxHp=3;stompKills=0;starMilestones.clear();koeItemState="pending";koeDropPosition=null;koeDropStage=null;shotItemState="pending";shotDropPosition=null;shotDropStage=null;voiceEnergy=VOICE_ENERGY_MAX;resetLevel();setMode("playing");
 }
 function restartCurrentStage(){
  totalScore=0;stageStartScore=0;totalIbo=0;stageStartIbo=0;starMilestones.clear();resetLevel();setMode("playing");
@@ -339,14 +347,25 @@ const player = {
 
 let enemies=[], shots=[], voiceAttacks=[], enemyShots=[], powerups=[], particles=[], rings=[], voiceFog=[], cameraX=0, last=0, clearPlayed=false, screenShake=0, goalPulse=0;
 // This state belongs to one run, not one stage: a continue must never remove an item already earned.
-let koeItemState="pending", koeDropPosition=null, koeDropStage=null, shotItemState="pending", shotDropPosition=null, shotDropStage=null, nextEnemyId=1, voiceEnergy=VOICE_ENERGY_MAX;
+let koeItemState="pending", koeDropPosition=null, koeDropStage=null, shotItemState="pending", shotDropPosition=null, shotDropStage=null, nextEnemyId=1, voiceEnergy=VOICE_ENERGY_MAX, stompKills=0;
+function isTouchInterface(){return typeof matchMedia==="function"&&matchMedia("(pointer: coarse)").matches;}
+function gameOverHintCandidates(isTouch=isTouchInterface()){
+  const hints=[];
+  if(stompKills===0)hints.push("敵は 上からふみつけて たおすことができるぞ");
+  if(koeItemState==="collected"&&isTouch)hints.push("声こうげきは、ボタンをおす長さで いりょくが かわる");
+  if(shotItemState!=="collected")hints.push("ステージ2で 金色の玉を てにいれると…？？");
+  if(koeItemState==="collected")hints.push("強い声ほど、遠くまでとどくが エネルギーがたくさんへる");
+  hints.push("大きなハートを取ると、最大HPがふえる","スターのむてき時間は、およそ8秒","干し芋をとることで エネルギーが回復できる");
+  return hints;
+}
+function selectGameOverHint(){const hints=gameOverHintCandidates();return hints[Math.floor(Math.random()*hints.length)];}
 function emitKoeEvent(type,detail={}){
   if(typeof CustomEvent!=="undefined"&&window.dispatchEvent)window.dispatchEvent(new CustomEvent(`koe:item-${type}`,{detail}));
 }
 // Range is a fraction of the visible game width: プ 30%, ス～ 40%, ブリブリ 50%, ヴリヴリブー 70%.
-const VOICE_WORDS={p:{text:"プ",cost:6,range:.30},s:{text:"ス～",cost:10,range:.40},b:{text:"ブリブリ",cost:14,range:.50},v:{text:"ヴリヴリブー",cost:20,range:.70}};
+const VOICE_WORDS={p:{text:"プ",cost:8,range:.30},s:{text:"ス～",cost:12,range:.40},b:{text:"ブリブリ",cost:20,range:.50},v:{text:"ヴリヴリブー",cost:30,range:.70}};
 function syncVoiceUI(){
- const el=document.getElementById("voice");el.hidden=koeItemState!=="collected";el.textContent=`声 ${voiceEnergy}`;el.disabled=koeItemState!=="collected"||voiceEnergy<6;
+ const el=document.getElementById("voice");el.hidden=koeItemState!=="collected";el.textContent=`声 ${voiceEnergy}`;el.disabled=koeItemState!=="collected";
 }
 function syncShotUI(){
  const el=document.getElementById("shot");el.hidden=shotItemState!=="collected";el.disabled=shotItemState!=="collected";
@@ -361,15 +380,16 @@ function syncControlsHelp(){
 function fireVoiceAttack(key){
   if(mode!=="playing"||koeItemState!=="collected"||voiceAttacks.length)return;
   const voice=VOICE_WORDS[key]||VOICE_WORDS[["p","s","b","v"][Math.floor(Math.random()*4)]];
-  if(voiceEnergy<voice.cost)return;
-  voiceEnergy-=voice.cost;syncVoiceUI();
   const {text:word,cost,range}=voice,letters=Array.from(word).length,direction=-player.facing;
+  const launchY=player.y-16;
+  if(voiceEnergy<cost){spawnVoiceFog(player.x+direction*28,launchY-22,direction,false,"#ffffff",.14);sfx.voiceFail();return;}
+  voiceEnergy-=cost;syncVoiceUI();
   // Longer calls linger in the world; all travel straight behind the hero.
   const speed=7.4/(1+(letters-1)*.16);
   // Keep the voice hitbox clearly above the feet so it does not immediately hit the platform being stood on.
-  const launchY=player.y-16;
   // `x` is the rear edge next to the hero: right edge when flying left, left edge when flying right.
   voiceAttacks.push({text:word,x:player.x+direction*38,y:launchY,vx:direction*speed,direction,w:letters*52,h:52,range:W*range,travel:0,alive:true});
+  sfx.voiceAttack(key);
   spawnVoiceFog(player.x+direction*28,launchY-22,direction);
   spawnBurst(player.x+direction*30,launchY,"#ffe75a",8,.75);
 }
@@ -447,11 +467,11 @@ function spawnBurst(x,y,color,count=8,power=1){
 function spawnRing(x,y,color,radius=16){
   if(rings.length<24)rings.push({x,y,color,radius,life:360,maxLife:360});
 }
-function spawnVoiceFog(x,y,direction=1,impact=false){
+function spawnVoiceFog(x,y,direction=1,impact=false,color="#ffe65a",opacity=.32){
   const count=impact?6:4,life=impact?540:440;
   for(let i=0;i<count&&voiceFog.length<48;i++){
     const spread=(i-(count-1)/2)*8;
-    voiceFog.push({x:x+Math.random()*10*direction,y:y+spread,vx:direction*(.25+Math.random()*.55),vy:(Math.random()-.6)*.22,radius:(impact?15:12)+Math.random()*8,life,maxLife:life,grow:impact?.065:.045});
+    voiceFog.push({x:x+Math.random()*10*direction,y:y+spread,vx:direction*(.25+Math.random()*.55),vy:(Math.random()-.6)*.22,radius:(impact?15:12)+Math.random()*8,life,maxLife:life,grow:impact?.065:.045,color,opacity});
   }
 }
 function dropKoeItem(enemy){
@@ -474,10 +494,10 @@ function enemyScore(enemy){
   const base={walker:1,hopper:2,flyer:3}[enemy.type]||1;
   return base+(enemyCanShoot(enemy.type)?1:0);
 }
-function defeatEnemy(enemy){
+function defeatEnemy(enemy,cause=""){
   if(!enemy.alive)return;
-  enemy.alive=false;dropKoeItem(enemy);dropShotItem(enemy);awardScore(enemyScore(enemy));
-  if(koeItemState==="collected"){voiceEnergy=Math.min(VOICE_ENERGY_MAX,voiceEnergy+2);syncVoiceUI();}
+  enemy.alive=false;if(cause==="stomp")stompKills++;dropKoeItem(enemy);dropShotItem(enemy);awardScore(enemyScore(enemy));
+  if(koeItemState==="collected"){voiceEnergy=Math.min(VOICE_ENERGY_MAX,voiceEnergy+1);syncVoiceUI();}
 }
 
 function update(dt) {
@@ -609,7 +629,7 @@ function update(dt) {
       }else if(player.inv<=0){
         const playerBottom=pr.y+pr.h;
         if(e.type!=="hopper"&&player.vy>2 && playerBottom-er.y<30){
-          defeatEnemy(e);player.vy=-9;spawnBurst(e.x,e.y-35,"#f5d3a5",16,1.25);spawnRing(e.x,e.y-35,"#ffd59f",24);screenShake=Math.max(screenShake,4);sfx.hit();
+          defeatEnemy(e,"stomp");player.vy=-9;spawnBurst(e.x,e.y-35,"#f5d3a5",16,1.25);spawnRing(e.x,e.y-35,"#ffd59f",24);screenShake=Math.max(screenShake,4);sfx.hit();
         } else hurtPlayer(false);
       }
     }
@@ -621,7 +641,7 @@ function update(dt) {
     const previousY=s.y,moveX=s.vx*f;
     s.x+=moveX;s.travelX+=Math.abs(moveX);s.y+=s.vy*f;s.vy+=.20*f;
     const shotRect={x:s.x-s.r,y:s.y-s.r,w:s.r*2,h:s.r*2};
-    const hitPlatform=(s.vy>0&&previousY+s.r<=FLOOR_Y&&s.y+s.r>=FLOOR_Y)||level.platforms.some(p=>intersect(shotRect,p)||(s.vy>0&&previousY+s.r<=p.y&&s.y+s.r>=p.y&&s.x+s.r>p.x&&s.x-s.r<p.x+p.w));
+    const hitPlatform=level.platforms.some(p=>intersect(shotRect,p)||(s.vy>0&&previousY+s.r<=p.y&&s.y+s.r>=p.y&&s.x+s.r>p.x&&s.x-s.r<p.x+p.w));
     if(hitPlatform){s.alive=false;spawnBurst(s.x,s.y,"#cdb3ff",4);continue;}
     const sr={x:s.x-s.r,y:s.y-s.r,w:s.r*2,h:s.r*2};
     for(const e of enemies){
@@ -898,7 +918,7 @@ function drawParticles(){
   ctx.shadowBlur=0;
   for(const fog of voiceFog){
     const fade=Math.max(0,fog.life/fog.maxLife);
-    ctx.globalAlpha=fade*fade*.32;ctx.fillStyle="#ffe65a";ctx.beginPath();ctx.ellipse(fog.x-cameraX,fog.y,fog.radius*1.35,fog.radius,0,0,Math.PI*2);ctx.fill();
+    ctx.globalAlpha=fade*fade*fog.opacity;ctx.fillStyle=fog.color;ctx.beginPath();ctx.ellipse(fog.x-cameraX,fog.y,fog.radius*1.35,fog.radius,0,0,Math.PI*2);ctx.fill();
   }
   for(const ring of rings){ctx.globalAlpha=Math.max(0,ring.life/ring.maxLife)*.8;ctx.strokeStyle=ring.color;ctx.lineWidth=2+ring.life/ring.maxLife*2;ctx.beginPath();ctx.arc(ring.x-cameraX,ring.y,ring.radius,0,Math.PI*2);ctx.stroke();}
   ctx.globalAlpha=1;
