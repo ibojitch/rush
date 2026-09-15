@@ -43,7 +43,7 @@ let WORLD_W = 5200;
 const STAGE_COUNT = 5;
 /*
  * SPRITE ATLAS SPECIFICATION
- * File: ibojigen_sprite_atlas_1280x456.png (actual size: 1280 x 684 px)
+ * File: ibojigen_sprite_atlas.png (actual size: 1280 x 684 px)
  * Grid: 8 columns x 3 rows; cell size = pitch = 160 x 228 px; gutter = 0 px.
  * Origin: top-left. Tiles are stored bottom-centre in each cell.
  * Rows: 0 = player (native facing right), 1 = enemy (native facing left).
@@ -99,7 +99,7 @@ const atlas = new Image();
 let atlasReady = false;
 atlas.onload = () => { atlasReady = true; };
 atlas.onerror = () => { document.getElementById("status").textContent="キャラ画像を読み込めません。再読み込みしてください。"; };
-atlas.src = "ibojigen_sprite_atlas_1280x456.png";
+atlas.src = "ibojigen_sprite_atlas.png";
 
 const keys = Object.create(null);
 addEventListener("keydown", e => {

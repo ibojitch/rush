@@ -1,7 +1,7 @@
 param(
   [string]$Source = (Join-Path $PSScriptRoot "..\old\ibojigen_sprite_atlas_source_1774x887.png"),
   [string]$KoeItem = (Join-Path $PSScriptRoot "..\old\koe-item_source_1254x1254.png"),
-  [string]$Output = (Join-Path $PSScriptRoot "..\ibojigen_sprite_atlas_1280x456.png")
+  [string]$Output = (Join-Path $PSScriptRoot "..\ibojigen_sprite_atlas.png")
 )
 
 # Sprite atlas layout used by index.html:
