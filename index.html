@@ -257,6 +257,57 @@ const baseLevel = {
   goalX: 5050
 };
 
+// Stage 1 remains the tutorial layout above. Later stages use explicit data so
+// their routes can evolve independently without offsetting the tutorial map.
+function stageLayout({floors,ledges,coins,enemies,heart}){
+  return {
+    platforms:[
+      ...floors.map(([x,w])=>({x,y:FLOOR_Y,w,h:85})),
+      ...ledges.map(([x,y,w])=>({x,y,w,h:22}))
+    ],
+    coins:coins.map(([x,y])=>({x,y,r:10,taken:false})),
+    enemySpawns:enemies.map(([x,y,type])=>({x,y,type})),
+    hearts:[{x:heart[0],y:heart[1],taken:false}],
+    goalX:5050
+  };
+}
+
+const stageLayouts=[
+  null,
+  stageLayout({
+    // Stage 2: a forgiving ground route and a more dangerous upper unlock route.
+    floors:[[0,900],[1030,870],[2050,950],[3130,870],[4140,1060]],
+    ledges:[[650,370,220],[1060,365,260],[1400,300,300],[1760,350,220],[2310,365,230],[2700,315,220],[3370,355,240],[3780,305,220],[4380,360,220]],
+    coins:[[690,330],[760,330],[1110,325],[1180,325],[1450,260],[1530,260],[1610,260],[1810,310],[2350,325],[2760,275],[3430,315],[3840,265],[4440,320],[4520,320]],
+    enemies:[[1120,FLOOR_Y,"walker"],[1540,300,"hopper"],[2250,FLOOR_Y,"flyer"],[2700,FLOOR_Y,"walker"],[3420,FLOOR_Y,"hopper"],[3920,FLOOR_Y,"flyer"],[4550,FLOOR_Y,"walker"]],
+    heart:[2360,410]
+  }),
+  stageLayout({
+    // Stage 3: stepped height changes and open air lanes for fighting flyers.
+    floors:[[0,780],[910,690],[1740,760],[2640,760],[3530,770],[4430,770]],
+    ledges:[[500,370,220],[930,365,260],[1240,295,230],[1530,350,190],[1840,360,230],[2160,285,260],[2530,345,200],[2920,280,240],[3350,350,210],[3790,290,240],[4240,360,210],[4590,300,240]],
+    coins:[[540,330],[610,330],[980,325],[1060,325],[1290,255],[1370,255],[1880,320],[2210,245],[2290,245],[2580,305],[2970,240],[3050,240],[3400,310],[3840,250],[3920,250],[4290,320],[4640,260],[4720,260]],
+    enemies:[[620,FLOOR_Y,"walker"],[1300,FLOOR_Y,"flyer"],[1900,360,"hopper"],[2300,FLOOR_Y,"flyer"],[2780,FLOOR_Y,"walker"],[3100,FLOOR_Y,"flyer"],[3880,290,"hopper"],[4520,FLOOR_Y,"flyer"]],
+    heart:[3860,250]
+  }),
+  stageLayout({
+    // Stage 4: short jump chains followed by safe and risky reward lines.
+    floors:[[0,850],[940,310],[1340,300],[1735,310],[2145,705],[2970,730],[3820,680],[4620,580]],
+    ledges:[[700,380,180],[960,330,180],[1190,370,170],[1430,315,190],[1690,365,180],[2250,365,240],[2560,300,230],[2880,360,200],[3190,300,230],[3500,360,210],[3910,305,240],[4260,365,220]],
+    coins:[[730,340],[1000,290],[1230,330],[1470,275],[1730,325],[2200,415],[2320,325],[2400,325],[2610,260],[2690,260],[2930,320],[3240,260],[3320,260],[3550,320],[3870,415],[3960,265],[4040,265],[4310,325],[4700,415]],
+    enemies:[[620,FLOOR_Y,"walker"],[1130,FLOOR_Y,"flyer"],[1900,FLOOR_Y,"hopper"],[2630,300,"walker"],[3260,FLOOR_Y,"flyer"],[3970,305,"hopper"],[4700,FLOOR_Y,"walker"]],
+    heart:[2210,410]
+  }),
+  stageLayout({
+    // Stage 5: staggered beam cover, a recovery stretch, then a one-ledge boss arena.
+    floors:[[0,950],[1060,720],[1890,760],[2760,790],[3660,1540]],
+    ledges:[[600,365,240],[1080,350,280],[1450,285,220],[1930,365,260],[2350,300,240],[2800,360,260],[3250,290,240],[3700,355,260],[4100,300,240],[4480,380,210]],
+    coins:[[650,325],[730,325],[1130,310],[1210,310],[1500,245],[1580,245],[1980,325],[2060,325],[2400,260],[2480,260],[2850,320],[2930,320],[3300,250],[3380,250],[3750,315],[3830,315],[4150,260],[4230,260],[4350,415],[4420,415]],
+    enemies:[[720,FLOOR_Y,"walker"],[1280,FLOOR_Y,"flyer"],[2050,FLOOR_Y,"hopper"],[2920,FLOOR_Y,"walker"],[3370,FLOOR_Y,"flyer"],[3860,FLOOR_Y,"hopper"],[4420,FLOOR_Y,"walker"],[4580,FLOOR_Y,"flyer"],[4870,FLOOR_Y,"boss"]],
+    heart:[4250,410]
+  })
+];
+
 const themes=[
  {name:"はじまりの草原",sky:["#84d6f4","#fce3b5","#efd1a3"],mountains:["#bbc5dc","#8aa7bb"],grass:"#8bce86",dirt:"#ba8560",accent:"#8b49ff",mist:"#f8ffe3",notes:[261.63,329.63,392,523.25,440,392,329.63,293.66]},
  {name:"夕焼けの遺跡",sky:["#aa95db","#ffc6aa","#efad87"],mountains:["#ba91bc","#88799d"],grass:"#e5b578",dirt:"#9b7180",accent:"#e88d70",mist:"#ffe2bc",notes:[293.66,349.23,440,587.33,523.25,440,349.23,329.63]},
@@ -265,17 +316,15 @@ const themes=[
  {name:"次元の最深部",sky:["#100d2e","#342768","#74578c"],mountains:["#3c3263","#211c48"],grass:"#8c7bd6",dirt:"#51496e",accent:"#ff6f91",mist:"#e6b9ff",notes:[246.94,311.13,369.99,493.88,415.30,369.99,311.13,277.18]}
 ];
 function buildLevel(index){
- const offsets=[0,65,-45,85,-70];
- const platforms=baseLevel.platforms.map((p,i)=>({...p,...(i>=5?{x:p.x+offsets[index],y:p.y-(index===2?20:0)}:{})}));
- const coins=baseLevel.coins.map(c=>({...c,x:c.x+offsets[index],y:c.y-(index===2?20:0)}));
- const enemySpawns=baseLevel.enemySpawns.map((e,i)=>({...e,type:index===0?"walker":i%3===1?"flyer":i%3===2?"hopper":"walker"}));
- if(index>0)enemySpawns.push({x:1550,y:320,type:"flyer"},{x:4350,y:FLOOR_Y,type:"hopper"});
- if(index>=3)enemySpawns.push({x:2850,y:FLOOR_Y,type:"walker"});
- if(index===STAGE_COUNT-1)enemySpawns.push({x:4870,y:FLOOR_Y,type:"boss"});
- const heartPositions=[[2780,410],[2310,265],[3650,255],[1700,410],[3970,410]];
- const [heartX,heartY]=heartPositions[index];
- const hearts=[{x:heartX+offsets[index],y:heartY,taken:false}];
- return {platforms,coins,hearts,enemySpawns,goalX:baseLevel.goalX,bossGate:index===STAGE_COUNT-1?baseLevel.goalX-70:null};
+ const source=index===0?{...baseLevel,hearts:[{x:2780,y:410,taken:false}]}:stageLayouts[index];
+ return {
+   platforms:source.platforms.map(p=>({...p})),
+   coins:source.coins.map(c=>({...c,taken:false})),
+   hearts:source.hearts.map(heart=>({...heart,taken:false})),
+   enemySpawns:source.enemySpawns.map(enemy=>({...enemy})),
+   goalX:source.goalX,
+   bossGate:index===STAGE_COUNT-1?source.goalX-70:null
+ };
 }
 let level=buildLevel(0);
 function setMode(next){

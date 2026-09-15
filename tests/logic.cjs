@@ -31,6 +31,20 @@ run('resetLevel();mode="playing";player.x=500;player.y=455;player.onGround=true;
 run('resetLevel();player.safeX=500;player.safeY=455;player.x=900;player.y=700;hurtPlayer(true)');assert.equal(run('player.x'),500);assert.equal(run('player.hp'),2);
 run('player.hp=1;hurtPlayer(true)');assert.equal(run('mode'),'dead');el('action').click();assert.equal(run('mode'),'playing');assert.equal(run('player.hp'),3);
 assert.equal(run('STAGE_COUNT'),5);assert.equal(run('themes.length'),5);
+assert.equal(run('stageLayouts.length'),5);
+assert.equal(run('buildLevel(0).platforms.length'),14);assert.equal(run('buildLevel(0).enemySpawns.every(e=>!e.type)'),true);
+assert.equal(run('buildLevel(4).platforms.filter(p=>p.y<FLOOR_Y&&p.x>=4340).length'),1);
+assert(run('buildLevel(4).platforms.some(p=>p.x===4480&&p.y===380&&p.w===210)'),"stage 5 needs a single boss-shot ledge");
+assert(run('buildLevel(4).platforms.filter(p=>p.y<FLOOR_Y).every(p=>p.x+p.w<=4690)'),"stage 5 boss ledges must end before the boss");
+assert.equal(run('buildLevel(4).enemySpawns.filter(e=>e.type!=="boss"&&e.x>=4400).length'),2);
+for(let stage=1;stage<5;stage++){
+ const gaps=run(`buildLevel(${stage}).platforms.filter(p=>p.y===FLOOR_Y).sort((a,b)=>a.x-b.x).slice(1).map((p,i)=>p.x-buildLevel(${stage}).platforms.filter(q=>q.y===FLOOR_Y).sort((a,b)=>a.x-b.x)[i].x-buildLevel(${stage}).platforms.filter(q=>q.y===FLOOR_Y).sort((a,b)=>a.x-b.x)[i].w)`);
+ assert(gaps.every(gap=>gap<=150),`stage ${stage+1} has an overlong required floor gap`);
+ assert(run(`buildLevel(${stage}).platforms.every(p=>p.w>=140)`));
+ assert(run(`(()=>{const l=buildLevel(${stage});return l.coins.every(c=>l.platforms.some(p=>c.x>=p.x&&c.x<=p.x+p.w&&Math.abs(p.y-player.h/2-c.y)<28))})()`),`stage ${stage+1} has an unsupported dried-potato pickup`);
+ assert(run(`(()=>{const l=buildLevel(${stage});return l.hearts.every(h=>l.platforms.some(p=>h.x>=p.x&&h.x<=p.x+p.w&&Math.abs(p.y-player.h/2-h.y)<28))})()`),`stage ${stage+1} has an unsupported heart`);
+ assert(run(`(()=>{const l=buildLevel(${stage});return l.enemySpawns.filter(e=>e.type!=="flyer").every(e=>l.platforms.some(p=>e.x>=p.x&&e.x<=p.x+p.w&&p.y===e.y))})()`),`stage ${stage+1} has an unsupported ground enemy`);
+}
 assert.equal(run('enemyAttackOriginY({y:500,h:100})'),415);
 run('debugMode=false;stageIndex=2;resetLevel();mode="playing";player.hp=1;voiceEnergy=4;shotItemState="pending";koeItemState="pending";syncShotUI();syncVoiceUI()');
 handlers.keydown.forEach(fn=>fn({key:'d',ctrlKey:true,repeat:false,preventDefault(){}}));assert.equal(run('debugMode'),true);
@@ -39,6 +53,8 @@ handlers.keydown.forEach(fn=>fn({key:'5',ctrlKey:false,repeat:false,preventDefau
 handlers.keydown.forEach(fn=>fn({key:'d',ctrlKey:true,repeat:false,preventDefault(){}}));assert.equal(run('debugMode'),false);
 run('stageIndex=4;resetLevel();mode="playing";var boss=enemies.find(e=>e.type==="boss")');assert(run('boss'));assert.equal(run('boss.hp'),3);assert(run('bossAlive()'));assert.equal(run('level.bossGate'),run('level.goalX-70'));
 run('player.x=level.goalX+1;update(16.6667)');assert.equal(run('mode'),'playing');
+run('stageIndex=4;resetLevel();mode="playing";clearKeys();shotItemState="collected";enemies=enemies.filter(e=>e.type==="boss");var ledgeBoss=enemies[0];player.x=4620;player.y=380;player.onGround=true;player.facing=1;keys.i=true;update(16.6667);keys.i=false;for(let n=0;n<80&&ledgeBoss.hp===3;n++)update(16.6667)');assert.equal(run('ledgeBoss.hp'),2);
+run('stageIndex=4;resetLevel();mode="playing";boss=enemies.find(e=>e.type==="boss")');
 run('boss.hitCooldown=0;damageEnemy(boss)');assert.equal(run('boss.hp'),2);assert(run('boss.damageInv>0'));run('damageEnemy(boss)');assert.equal(run('boss.hp'),2);
 run('boss.hitCooldown=0;boss.damageInv=0;damageEnemy(boss);boss.hitCooldown=0;boss.damageInv=0;damageEnemy(boss)');assert.equal(run('bossAlive()'),false);
 run('player.x=level.goalX+1;update(16.6667)');assert.equal(run('mode'),'clear');
@@ -61,6 +77,7 @@ run('const koe=powerups.find(p=>p.type==="koe");player.x=koe.x;player.y=koe.y+pl
 assert(el('controlsHelp').textContent.includes('P / S / B / V 声攻撃'));
 run('stageIndex=1;resetLevel();mode="playing";const shotEnemy=enemies.find(e=>e.type==="hopper");dropShotItem(shotEnemy)');assert.equal(run('shotItemState'),'dropped');assert.equal(run('powerups.filter(p=>p.type==="shot").length'),1);
 run('const shotItem=powerups.find(p=>p.type==="shot");player.x=shotItem.x;player.y=shotItem.y+player.h/2;update(0)');assert.equal(run('shotItemState'),'collected');assert.equal(el('shot').hidden,false);
+run('stageIndex=1;koeItemState="pending";shotItemState="pending";resetLevel();mode="playing";var fallbackWalker=enemies.find(e=>e.type==="walker");var unlockHopper=enemies.find(e=>e.type==="hopper");dropKoeItem(fallbackWalker)');assert.equal(run('koeItemState'),'dropped');assert(run('fallbackWalker.x<unlockHopper.x'));run('koeItemState="collected";dropShotItem(unlockHopper)');assert.equal(run('shotItemState'),'dropped');assert.equal(run('shotDropPosition.x'),run('unlockHopper.x'));run('shotItemState="collected"');
 run('stageIndex=2;resetLevel()');assert.equal(run('koeItemState'),'collected');assert.equal(run('shotItemState'),'collected');
 run('restartCurrentStage()');assert.equal(run('koeItemState'),'collected');assert.equal(run('shotItemState'),'collected');
 run('mode="playing";player.facing=1;voiceEnergy=VOICE_ENERGY_MAX;voiceAttacks=[];voiceFog=[];fireVoiceAttack("p");var shortVoice=voiceAttacks[0];fireVoiceAttack("v")');assert.equal(run('shortVoice.text'),'プ');assert(run('shortVoice.vx<0'));assert.equal(run('shortVoice.range'),run('W*.30'));assert.equal(run('voiceEnergy'),92);assert.equal(run('voiceAttacks.length'),1);assert.equal(run('voiceFog.length'),4);
@@ -87,7 +104,17 @@ let finished=false;for(let i=0;i<1800;i++){
  run(`keys[' ']=${jump};keys.i=${i%20===0};update(16.6667)`);
  if(run('player.clear')){finished=true;break;}if(run('player.dead'))break;
 }console.log({mainRouteCompleted:finished,hp:run('player.hp'),x:run('player.x')});assert(finished);
-console.log('PASS: syntax, controls, stage-1 retry, C/button continue from stage 2+, 5-stage progression, cumulative/high score, enemy beams, hearts, star power, pause, main route');
+for(let stage=1;stage<5;stage++){
+ run(`stageIndex=${stage};resetLevel();mode="playing";enemies=[];player.inv=100000;player.y=455;player.onGround=true;keys.arrowright=true`);
+ let reached=false;
+ for(let i=0;i<1800;i++){
+  const jump=run('player.onGround && level.platforms.some(p=>p.y===455&&player.x<p.x+p.w&&player.x>p.x+p.w-38&&p.x+p.w<5200)');
+  run(`keys[' ']=${jump};update(16.6667)`);
+  if(run('player.clear')){reached=true;break;}if(run('player.dead'))break;
+ }
+ assert(reached,`stage ${stage+1} ground route is not reachable`);run('clearKeys()');
+}
+console.log('PASS: syntax, controls, stage-1 retry, C/button continue, 5 distinct reachable stages, unlock fallback, scoring, beams, hearts, star power, pause');
 
 
 
