@@ -1,10 +1,20 @@
 const fs=require('fs'),vm=require('vm'),assert=require('assert');
 const html=fs.readFileSync(require('path').join(__dirname,'..','index.html'),'utf8');
-const code=html.match(/<script>([\s\S]*?)<\/script>/)[1];
+const audioCode=fs.readFileSync(require('path').join(__dirname,'..','audio.js'),'utf8');
+const gameCode=html.match(/<script>([\s\S]*?)<\/script>/)[1];
+const code=audioCode+"\n"+gameCode;
 const elements=new Map(),handlers={},storage=new Map();const gradient={addColorStop(){}};
 const ctx=new Proxy({createLinearGradient:()=>gradient},{get:(o,k)=>k in o?o[k]:()=>{}});
+const audioStats={oscillators:0};
+const param=()=>({value:0,setValueAtTime(){},exponentialRampToValueAtTime(){}}),node=()=>({connect(){}});
+class FakeAudioContext{
+ constructor(){this.currentTime=0;this.sampleRate=44100;this.state="running";this.destination=node();}
+ createGain(){return {...node(),gain:param()}} createDynamicsCompressor(){return node()} createDelay(){return {...node(),delayTime:param()}}
+ createOscillator(){audioStats.oscillators++;return {...node(),detune:param(),frequency:param(),start(){},stop(){}}} createBiquadFilter(){return {...node(),frequency:param()}}
+ createBuffer(channels,length){return {getChannelData:()=>new Float32Array(length)}} createBufferSource(){return {...node(),start(){}}} resume(){}
+}
 function el(id){if(!elements.has(id))elements.set(id,{width:960,height:540,hidden:false,textContent:'',classList:{add(){},remove(){}},addEventListener(){},setAttribute(){},setPointerCapture(){},getContext:()=>ctx,click(){this.onclick?.()}});return elements.get(id)}
-const sandbox={console,Math,performance:{now:()=>1000},setTimeout:()=>0,requestAnimationFrame:()=>0,Image:class{},localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v)},addEventListener(type,fn){(handlers[type]??=[]).push(fn)},document:{getElementById:el,addEventListener(){},querySelectorAll:()=>[]},window:{}};
+const sandbox={console,Math,AudioContext:FakeAudioContext,performance:{now:()=>1000},setTimeout:()=>0,requestAnimationFrame:()=>0,Image:class{},localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v)},addEventListener(type,fn){(handlers[type]??=[]).push(fn)},document:{getElementById:el,addEventListener(){},querySelectorAll:()=>[]},window:{}};
 vm.createContext(sandbox);vm.runInContext(code,sandbox);
 function run(code){return vm.runInContext(code,sandbox)}
 run('atlasReady=true;atlas.naturalWidth=1280;atlas.naturalHeight=684;mode="playing";');
@@ -17,6 +27,9 @@ assert(run('shotTrailEndpoints({x:500,y:200,vx:7,vy:0}).tailX<500'));assert(run(
 assert.equal(run('shotItemState'),'pending');run('resetLevel();mode="playing";keys.i=true;update(16.6667);keys.i=false');assert.equal(run('shots.length'),0);assert.equal(el('shot').hidden,true);assert(!el('controlsHelp').textContent.includes('ミサイル'));assert(el('controlsHelp').textContent.includes('C コンティニュー（GAME OVER時）'));run('shotItemState="collected";syncShotUI();syncControlsHelp()');assert(el('controlsHelp').textContent.includes('I / Z ミサイル'));
 assert.equal(run('typeof sfx.shotUnlock'),'function');
 assert.equal(run('typeof sfx.voiceAttack'),'function');
+assert.equal(run('typeof RushSound.resetMusic'),'function');
+assert(html.includes('<script src="audio.js"></script>'));assert(!gameCode.includes('createOscillator'));assert(!gameCode.includes('createBufferSource'));
+run('audio();sfx.shot();RushSound.updateMusic({dt:200,player:{starTime:0},theme:{notes:[261.63,329.63,392,523.25,440]},stageIndex:0})');assert(audioStats.oscillators>0);const audioCount=audioStats.oscillators;run('RushSound.setMuted(true);sfx.jump()');assert.equal(audioStats.oscillators,audioCount);run('RushSound.setMuted(false)');
 run('stompKills=0;koeItemState="pending";shotItemState="pending"');assert(run('gameOverHintCandidates(false)').includes('敵は 上からふみつけて たおすことができるぞ'));assert(!run('gameOverHintCandidates(false)').some(h=>h.includes('ボタンをおす長さ')));assert(run('gameOverHintCandidates(false)').some(h=>h.includes('干し芋')));
 run('stompKills=1;koeItemState="collected";shotItemState="collected"');assert(!run('gameOverHintCandidates(true)').some(h=>h.includes('ふみつけて')));assert(run('gameOverHintCandidates(true)').some(h=>h.includes('ボタンをおす長さ')));assert(run('gameOverHintCandidates(true)').some(h=>h.includes('強い声')));
 for(const facing of [-1,1]){
