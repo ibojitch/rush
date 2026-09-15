@@ -665,7 +665,7 @@ function update(dt) {
       const enemyRect=standingRect(e);
       if(e.alive&&intersect(vr,enemyRect)){hitPoint=overlapCenter(vr,enemyRect);defeatEnemy(e);hitEnemy=true;break;}
     }
-    if(hitPlatform||hitEnemy){voice.alive=false;if(hitEnemy)spawnVoiceFog(hitPoint.x,hitPoint.y,voice.direction,true);spawnBurst(voice.x,voice.y-24,"#ffe65a",18,1.45);spawnRing(voice.x,voice.y-24,"#ffe65a",22);continue;}
+    if(hitPlatform||hitEnemy){voice.alive=false;if(hitEnemy){spawnVoiceFog(hitPoint.x,hitPoint.y,voice.direction,true);sfx.hit();}spawnBurst(voice.x,voice.y-24,"#ffe65a",18,1.45);spawnRing(voice.x,voice.y-24,"#ffe65a",22);continue;}
     if(voice.travel>=voice.range){voice.alive=false;spawnBurst(voice.x,voice.y-24,"#ffe65a",12,1);continue;}
     const screenX=voice.x-cameraX;
     if(voice.direction<0?screenX<-20:screenX>W+20)voice.alive=false;
