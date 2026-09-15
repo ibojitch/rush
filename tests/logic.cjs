@@ -31,9 +31,22 @@ run('resetLevel();mode="playing";player.x=500;player.y=455;player.onGround=true;
 run('resetLevel();player.safeX=500;player.safeY=455;player.x=900;player.y=700;hurtPlayer(true)');assert.equal(run('player.x'),500);assert.equal(run('player.hp'),2);
 run('player.hp=1;hurtPlayer(true)');assert.equal(run('mode'),'dead');el('action').click();assert.equal(run('mode'),'playing');assert.equal(run('player.hp'),3);
 assert.equal(run('STAGE_COUNT'),5);assert.equal(run('themes.length'),5);
+assert.equal(run('enemyAttackOriginY({y:500,h:100})'),415);
+run('debugMode=false;stageIndex=2;resetLevel();mode="playing";player.hp=1;voiceEnergy=4;shotItemState="pending";koeItemState="pending";syncShotUI();syncVoiceUI()');
+handlers.keydown.forEach(fn=>fn({key:'d',ctrlKey:true,repeat:false,preventDefault(){}}));assert.equal(run('debugMode'),true);
+handlers.keydown.forEach(fn=>fn({key:'f',ctrlKey:false,repeat:false,preventDefault(){}}));assert.equal(run('shotItemState'),'collected');assert.equal(run('koeItemState'),'collected');assert.equal(run('player.hp'),run('player.maxHp'));assert.equal(run('voiceEnergy'),run('VOICE_ENERGY_MAX'));
+handlers.keydown.forEach(fn=>fn({key:'5',ctrlKey:false,repeat:false,preventDefault(){}}));assert.equal(run('stageIndex'),4);assert.equal(run('mode'),'playing');assert.equal(run('shotItemState'),'pending');assert.equal(run('koeItemState'),'pending');
+handlers.keydown.forEach(fn=>fn({key:'d',ctrlKey:true,repeat:false,preventDefault(){}}));assert.equal(run('debugMode'),false);
+run('stageIndex=4;resetLevel();mode="playing";var boss=enemies.find(e=>e.type==="boss")');assert(run('boss'));assert.equal(run('boss.hp'),3);assert(run('bossAlive()'));assert.equal(run('level.bossGate'),run('level.goalX-70'));
+run('player.x=level.goalX+1;update(16.6667)');assert.equal(run('mode'),'playing');
+run('boss.hitCooldown=0;damageEnemy(boss)');assert.equal(run('boss.hp'),2);assert(run('boss.damageInv>0'));run('damageEnemy(boss)');assert.equal(run('boss.hp'),2);
+run('boss.hitCooldown=0;boss.damageInv=0;damageEnemy(boss);boss.hitCooldown=0;boss.damageInv=0;damageEnemy(boss)');assert.equal(run('bossAlive()'),false);
+run('player.x=level.goalX+1;update(16.6667)');assert.equal(run('mode'),'clear');
+run('stageIndex=4;resetLevel();mode="playing";var contactBoss=enemies.find(e=>e.type==="boss");player.x=contactBoss.x;player.y=contactBoss.y;player.hp=3;player.starTime=0;update(0)');assert.equal(run('contactBoss.hp'),3);assert.equal(run('player.hp'),2);assert.notEqual(run('player.x'),run('contactBoss.x'));
+run('stageIndex=4;resetLevel();mode="playing";var starBoss=enemies.find(e=>e.type==="boss");player.x=starBoss.x;player.y=starBoss.y;player.starTime=8000;const hpBeforeBossContact=player.hp;update(0)');assert.equal(run('starBoss.hp'),3);assert.equal(run('player.hp'),run('hpBeforeBossContact'));assert.notEqual(run('player.x'),run('starBoss.x'));
 run('stageIndex=0;resetLevel();mode="playing";player.x=level.goalX+1;player.y=455;update(16.6667)');handlers.keydown.forEach(fn=>fn({key:'Enter',repeat:false,preventDefault(){}}));assert.equal(run('mode'),'clear');assert.equal(run('stageIndex'),0);handlers.keydown.forEach(fn=>fn({key:'x',repeat:false,preventDefault(){}}));assert.equal(run('mode'),'playing');assert.equal(run('stageIndex'),1);
 run('stageIndex=0;totalIbo=0;stageStartIbo=0;resetLevel();mode="playing"');
-for(let i=0;i<5;i++){run('player.x=level.goalX+1;player.y=455;update(16.6667)');assert.equal(run('mode'),'clear');el('action').click();assert.equal(run('stageIndex'),(i+1)%5);run('render()');}
+for(let i=0;i<5;i++){if(i===4)run('enemies.find(e=>e.type==="boss").alive=false');run('player.x=level.goalX+1;player.y=455;update(16.6667)');assert.equal(run('mode'),'clear');el('action').click();assert.equal(run('stageIndex'),(i+1)%5);run('render()');}
 run('muted=true;stageIndex=0;resetLevel();player.x=level.goalX+1;mode="playing";update(16.6667)');el('action').click();assert.equal(run('muted'),true);
 run('muted=false;stageIndex=0;resetLevel();player.x=level.goalX+1;mode="playing";update(16.6667)');el('action').click();assert.equal(run('muted'),false);
 run('togglePause()');assert.equal(run('mode'),'paused');const x=run('player.x');run('keys.arrowright=true;update(16.6667)');assert.equal(run('player.x'),x);el('action').click();assert.equal(run('mode'),'playing');
